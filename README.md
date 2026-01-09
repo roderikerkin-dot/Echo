@@ -29,12 +29,28 @@
    npm install
    ```
 
-3. Запустите приложение:
+3. Настройте аутентификацию через GitHub (опционально):
+   - Зарегистрируйте новое OAuth-приложение на GitHub: https://github.com/settings/applications/new
+   - Укажите Homepage URL: `http://localhost:3000`
+   - Укажите Authorization callback URL: `http://localhost:3000/auth/github/callback`
+   - После регистрации скопируйте Client ID и Client Secret
+   - Создайте файл `.env` в корне проекта и добавьте:
+     ```
+     GITHUB_CLIENT_ID=ваш_client_id
+     GITHUB_CLIENT_SECRET=ваш_client_secret
+     ```
+   - Установите пакет dotenv для загрузки переменных окружения:
+     ```bash
+     npm install dotenv
+     ```
+   - Добавьте строку `require('dotenv').config();` в начало файла server.js
+
+4. Запустите приложение:
    ```bash
    npm start
    ```
 
-4. Откройте [http://localhost:3000](http://localhost:3000) в вашем браузере.
+5. Откройте [http://localhost:3000](http://localhost:3000) в вашем браузере.
 
 ## Структура проекта
 

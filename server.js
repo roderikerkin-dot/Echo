@@ -1,3 +1,5 @@
+require('dotenv').config();
+
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
@@ -5,6 +7,8 @@ const sqlite3 = require('sqlite3').verbose();
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const path = require('path');
+const passport = require('passport');
+const GitHubStrategy = require('passport-github2').Strategy;
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -28,7 +32,9 @@ db.serialize(() => {
             user_tag TEXT UNIQUE,
             about_me TEXT,
             avatar TEXT DEFAULT '👤',
-            registration_date TEXT DEFAULT CURRENT_TIMESTAMP
+            registration_date TEXT DEFAULT CURRENT_TIMESTAMP,
+            github_id TEXT UNIQUE,
+            github_username TEXT
         )
     `);
 
@@ -51,6 +57,21 @@ db.serialize(() => {
         // Ошибка будет, если столбец уже существует, это нормально
         if (err && err.message.indexOf('duplicate column name') === -1) {
             console.error('Ошибка при добавлении столбца user_tag:', err);
+        }
+    });
+
+    // Добавляем столбцы для GitHub аутентификации
+    db.run(`ALTER TABLE users ADD COLUMN github_id TEXT UNIQUE`, (err) => {
+        // Ошибка будет, если столбец уже существует, это нормально
+        if (err && err.message.indexOf('duplicate column name') === -1) {
+            console.error('Ошибка при добавлении столбца github_id:', err);
+        }
+    });
+
+    db.run(`ALTER TABLE users ADD COLUMN github_username TEXT`, (err) => {
+        // Ошибка будет, если столбец уже существует, это нормально
+        if (err && err.message.indexOf('duplicate column name') === -1) {
+            console.error('Ошибка при добавлении столбца github_username:', err);
         }
     });
 
@@ -81,8 +102,83 @@ db.serialize(() => {
     `);
 });
 
+// Настройка Passport для аутентификации через GitHub
+passport.use(new GitHubStrategy({
+    clientID: process.env.GITHUB_CLIENT_ID || 'your-github-client-id',
+    clientSecret: process.env.GITHUB_CLIENT_SECRET || 'your-github-client-secret',
+    callbackURL: "/auth/github/callback"
+  },
+  function(accessToken, refreshToken, profile, done) {
+    // Проверяем, существует ли пользователь с таким github_id
+    db.get('SELECT * FROM users WHERE github_id = ?', [profile.id], (err, user) => {
+      if (err) {
+        return done(err);
+      }
+
+      if (user) {
+        // Пользователь уже существует, возвращаем его
+        return done(null, user);
+      } else {
+        // Создаем нового пользователя
+        const adjectives = ['cool', 'super', 'amazing', 'awesome', 'epic', 'legendary', 'fantastic', 'wonderful', 'brilliant', 'fabulous'];
+        const nouns = ['user', 'gamer', 'ninja', 'hero', 'champion', 'warrior', 'wizard', 'master', 'pro', 'star'];
+        const number = Math.floor(1000 + Math.random() * 9000); // 4-значное число
+
+        const randomAdjective = adjectives[Math.floor(Math.random() * adjectives.length)];
+        const randomNoun = nouns[Math.floor(Math.random() * nouns.length)];
+        const randomUsername = `${randomAdjective}${randomNoun}${number}`;
+
+        // Генерация уникального тега пользователя
+        generateUniqueTagWithRetry()
+          .then(userTag => {
+            // Вставляем нового пользователя с GitHub информацией
+            db.run(
+              'INSERT INTO users (email, password, username, user_tag, github_id, github_username) VALUES (?, ?, ?, ?, ?, ?)',
+              [`github_${profile.id}@example.com`, '', randomUsername, userTag, profile.id, profile.username],
+              function(err) {
+                if (err) {
+                  return done(err);
+                }
+
+                // Возвращаем нового пользователя
+                db.get('SELECT * FROM users WHERE id = ?', [this.lastID], (err, newUser) => {
+                  if (err) {
+                    return done(err);
+                  }
+                  return done(null, newUser);
+                });
+              }
+            );
+          })
+          .catch(err => {
+            return done(err);
+          });
+      }
+    });
+  }
+));
+
+// Сериализация пользователя для сессии
+passport.serializeUser(function(user, done) {
+  done(null, user.id);
+});
+
+// Десериализация пользователя из сессии
+passport.deserializeUser(function(id, done) {
+  db.get('SELECT id, email, username, user_tag, about_me, avatar FROM users WHERE id = ?', [id], (err, user) => {
+    done(err, user);
+  });
+});
+
 // Секретный ключ для JWT
 const JWT_SECRET = 'your-secret-key-change-this-in-production';
+
+// Middleware
+app.use(cors());
+app.use(bodyParser.json());
+app.use(express.static('public')); // Для обслуживания клиентских файлов
+app.use(passport.initialize());
+app.use(passport.session()); // Для работы с сессиями
 
 // Функция для генерации уникального шестизначного тега пользователя
 function generateUniqueUserTag() {
@@ -288,6 +384,28 @@ app.put('/api/profile', authenticateToken, (req, res) => {
         }
     );
 });
+
+// Маршрут для аутентификации через GitHub
+app.get('/auth/github',
+  passport.authenticate('github', { scope: [ 'user:email' ] }));
+
+// Маршрут для обратного вызова после аутентификации через GitHub
+app.get('/auth/github/callback',
+  passport.authenticate('github', { failureRedirect: '/login' }),
+  (req, res) => {
+    // Успешная аутентификация, генерируем JWT токен
+    const user = req.user;
+
+    // Создание JWT токена
+    const token = jwt.sign(
+      { userId: user.id, email: user.email },
+      JWT_SECRET,
+      { expiresIn: '24h' }
+    );
+
+    // Перенаправляем на главную страницу с токеном в параметрах URL
+    res.redirect(`/index.html?token=${token}`);
+  });
 
 // Главная страница
 app.get('/', (req, res) => {
