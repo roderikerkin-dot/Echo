@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Настройки - Discord Clone</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'gg sans', 'Noto Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            background-color: #36393F;
+            color: #ffffff;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            height: 48px;
+            padding: 0 16px;
+            display: flex;
+            align-items: center;
+            border-bottom: 1px solid rgba(0,0,0,0.3);
+            background-color: #18191c;
+        }
+
+        .header h1 {
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .back-button {
+            background: none;
+            border: none;
+            color: #b9bbbe;
+            font-size: 20px;
+            cursor: pointer;
+            margin-right: 16px;
+            width: 28px;
+            height: 28px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .back-button:hover {
+            color: #ffffff;
+            background-color: #36393F;
+            border-radius: 3px;
+        }
+
+        .settings-container {
+            flex: 1;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            overflow-y: auto;
+        }
+
+        .settings-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            width: 100%;
+            max-width: 800px;
+            margin-top: 20px;
+        }
+
+        .setting-card {
+            background-color: #2f3136;
+            border-radius: 8px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .setting-card:hover {
+            background-color: #36393f;
+        }
+
+        .setting-icon {
+            width: 60px;
+            height: 60px;
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .setting-icon svg {
+            width: 40px;
+            height: 40px;
+            fill: #b9bbbe;
+        }
+
+        .setting-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #ffffff;
+        }
+
+        .setting-description {
+            font-size: 14px;
+            color: #b9bbbe;
+            line-height: 1.4;
+        }
+
+        .user-info-panel {
+            background-color: #2f3136;
+            padding: 12px;
+            display: flex;
+            align-items: center;
+        }
+
+        .user-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background-color: #5865f2;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 18px;
+            margin-right: 8px;
+        }
+
+        .user-details {
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .username {
+            font-weight: 500;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .user-status {
+            font-size: 12px;
+            color: #b9bbbe;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .user-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .user-actions button {
+            background: none;
+            border: none;
+            color: #b9bbbe;
+            font-size: 20px;
+            cursor: pointer;
+            width: 28px;
+            height: 28px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .user-actions button svg {
+            width: 20px;
+            height: 20px;
+            fill: currentColor;
+        }
+
+        .user-actions button:hover {
+            color: #ffffff;
+            background-color: #36393F;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <button class="back-button" onclick="goBack()">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M19 12H5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M12 19L5 12L12 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+        </button>
+        <h1>Настройки</h1>
+    </div>
+
+    <div class="settings-container">
+        <div class="settings-grid">
+            <div class="setting-card" onclick="openProfileSettings()">
+                <div class="setting-icon">
+                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="12" cy="8" r="4" stroke="currentColor" stroke-width="2"/>
+                        <path d="M5 20C5 16.134 8.13401 13 12 13C15.866 13 19 16.134 19 20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                </div>
+                <div class="setting-title">Настройки профиля</div>
+                <div class="setting-description">Измените информацию о себе, аватар и другие данные профиля</div>
+            </div>
+
+            <div class="setting-card" onclick="openThemeSettings()">
+                <div class="setting-icon">
+                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 3C7.02944 3 3 7.02944 3 12C3 16.9706 7.02944 21 12 21C16.9706 21 21 16.9706 21 12C21 7.02944 16.9706 3 12 3Z" stroke="currentColor" stroke-width="2"/>
+                        <path d="M12 16C14.2091 16 16 14.2091 16 12C16 9.79086 14.2091 8 12 8C9.79086 8 8 9.79086 8 12C8 14.2091 9.79086 16 12 16Z" stroke="currentColor" stroke-width="2"/>
+                        <path d="M12 1V3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        <path d="M12 21V23" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        <path d="M4.22 4.22L5.64 5.64" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        <path d="M18.36 18.36L19.78 19.78" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        <path d="M1 12H3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        <path d="M21 12H23" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        <path d="M4.22 19.78L5.64 18.36" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        <path d="M18.36 5.64L19.78 4.22" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                </div>
+                <div class="setting-title">Настройки темы</div>
+                <div class="setting-description">Настройте внешний вид приложения, цвета и тему оформления</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="user-info-panel">
+        <div class="user-avatar">👤</div>
+        <div class="user-details">
+            <div class="username" id="currentUsername">CurrentUser</div>
+            <div class="user-status">#4567</div>
+        </div>
+        <div class="user-actions">
+            <button onclick="logout()">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M19 3H5C3.9 3 3 3.9 3 5V19C3 20.1 3.9 21 5 21H19C20.1 21 21 20.1 21 19V5C21 3.9 20.1 3 19 3ZM19 19H5V5H19V19Z" fill="currentColor"/>
+                    <path d="M11 7H9V17H11V7Z" fill="currentColor"/>
+                    <path d="M15 10V14H17V10H15Z" fill="currentColor"/>
+                </svg>
+            </button>
+            <button onclick="goToMain()">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 3L2 12H5V20H11V14H13V20H19V12H22L12 3Z" fill="currentColor"/>
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Загружаем имя пользователя
+        document.addEventListener('DOMContentLoaded', function() {
+            const token = localStorage.getItem('token');
+
+            if (token) {
+                // Получаем данные профиля с сервера
+                fetch('/api/profile', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': 'Bearer ' + token
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.username) {
+                        document.getElementById('currentUsername').textContent = data.username;
+                    }
+                })
+                .catch(error => {
+                    console.error('Ошибка при загрузке профиля:', error);
+                    // Если не удается получить данные, используем локальное значение
+                    const username = localStorage.getItem('username');
+                    if (username) {
+                        document.getElementById('currentUsername').textContent = username;
+                    }
+                });
+            } else {
+                // Если нет токена, перенаправляем на страницу входа
+                window.location.href = 'login.html';
+            }
+        });
+
+        function goBack() {
+            window.history.back();
+        }
+
+        function goToMain() {
+            window.location.href = 'index.html';
+        }
+
+        function logout() {
+            const confirmed = confirm('Вы уверены что хотите выйти из профиля?');
+            if (confirmed) {
+                localStorage.removeItem('isLoggedIn');
+                localStorage.removeItem('username');
+                window.location.href = 'login.html';
+            }
+        }
+
+        function openProfileSettings() {
+            window.location.href = 'profile-settings.html';
+        }
+
+        function openThemeSettings() {
+            alert('Функция настроек темы будет реализована в будущем');
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Просмотр localStorage</title>
+</head>
+<body>
+    <h1>Содержимое localStorage</h1>
+    <pre id="storageContent"></pre>
+    <button onclick="refreshStorage()">Обновить</button>
+    <button onclick="clearStorage()">Очистить</button>
+
+    <script>
+        function refreshStorage() {
+            const storageContent = document.getElementById('storageContent');
+            let content = '';
+            
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                const value = localStorage.getItem(key);
+                content += `"${key}": ${value}\n\n`;
+            }
+            
+            if (content === '') {
+                content = 'localStorage пуст';
+            }
+            
+            storageContent.textContent = content;
+        }
+        
+        function clearStorage() {
+            localStorage.clear();
+            refreshStorage();
+        }
+        
+        // Показываем содержимое при загрузке
+        refreshStorage();
+    </script>
+</body>
+</html>

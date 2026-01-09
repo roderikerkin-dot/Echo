@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Регистрация - Discord Clone (DEBUG)</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'gg sans', 'Noto Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .register-container {
+            background-color: rgba(32, 34, 37, 0.8);
+            backdrop-filter: blur(10px);
+            border-radius: 10px;
+            padding: 30px;
+            width: 400px;
+            max-width: 90%;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .register-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .register-header h1 {
+            color: #ffffff;
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+
+        .register-form {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            color: #b9bbbe;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            background-color: #18191c;
+            border: 1px solid #202225;
+            border-radius: 4px;
+            color: #ffffff;
+            font-size: 16px;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #5865f2;
+        }
+
+        .toggle-password-btn {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: #b9bbbe;
+            cursor: pointer;
+            padding: 4px;
+        }
+
+        .toggle-password-btn:hover {
+            color: #ffffff;
+        }
+
+        .submit-btn {
+            background-color: #5865f2;
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 4px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .submit-btn:hover {
+            background-color: #4752c4;
+        }
+
+        .error-message {
+            color: #f23f43;
+            font-size: 14px;
+            margin-top: 10px;
+            text-align: center;
+            display: none;
+        }
+
+        .success-message {
+            color: #3ba55d;
+            font-size: 14px;
+            margin-top: 10px;
+            text-align: center;
+            display: none;
+        }
+
+        .debug-info {
+            color: #ffffff;
+            font-size: 12px;
+            margin-top: 10px;
+            text-align: center;
+            display: none;
+        }
+
+        .logo {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .logo svg {
+            width: 60px;
+            height: 60px;
+            fill: #ffffff;
+        }
+
+        .back-to-login {
+            text-align: center;
+            margin-top: 20px;
+            color: #b9bbbe;
+            font-size: 14px;
+        }
+
+        .back-to-login a {
+            color: #00a8fc;
+            text-decoration: none;
+        }
+
+        .back-to-login a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="register-container">
+        <div class="logo">
+            <svg width="60" height="60" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 3L2 12H5V20H11V14H13V20H19V12H22L12 3Z" fill="currentColor"/>
+            </svg>
+        </div>
+        <div class="register-header">
+            <h1>Создать аккаунт (DEBUG)</h1>
+        </div>
+        <form class="register-form" id="registerForm">
+            <div class="form-group">
+                <label for="email">Email</label>
+                <input type="email" id="email" name="email" placeholder="Введите ваш email" required>
+            </div>
+            <div class="form-group">
+                <label for="password">Пароль</label>
+                <div style="position: relative;">
+                    <input type="password" id="password" name="password" placeholder="Введите пароль" required style="padding-right: 40px;">
+                    <button type="button" id="togglePassword" class="toggle-password-btn" onclick="togglePasswordVisibility('password', 'togglePassword')">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M1 12C1 12 5 4 12 4C19 4 23 12 23 12C23 12 19 20 12 20C5 20 1 12 1 12Z" stroke="currentColor" stroke-width="2"/>
+                            <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="confirmPassword">Подтвердите пароль</label>
+                <div style="position: relative;">
+                    <input type="password" id="confirmPassword" name="confirmPassword" placeholder="Подтвердите пароль" required style="padding-right: 40px;">
+                    <button type="button" id="toggleConfirmPassword" class="toggle-password-btn" onclick="togglePasswordVisibility('confirmPassword', 'toggleConfirmPassword')">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M1 12C1 12 5 4 12 4C19 4 23 12 23 12C23 12 19 20 12 20C5 20 1 12 1 12Z" stroke="currentColor" stroke-width="2"/>
+                            <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            <button type="submit" class="submit-btn">Зарегистрироваться</button>
+            <div class="error-message" id="errorMessage"></div>
+            <div class="success-message" id="successMessage">Регистрация успешна! (имитация отправки письма на email)</div>
+            <div class="debug-info" id="debugInfo"></div>
+        </form>
+        <div class="back-to-login">
+            Уже есть аккаунт? <a href="login.html">Войти</a>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('registerForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+            const errorMessage = document.getElementById('errorMessage');
+            const successMessage = document.getElementById('successMessage');
+            const debugInfo = document.getElementById('debugInfo');
+            
+            // Сброс сообщений
+            errorMessage.style.display = 'none';
+            successMessage.style.display = 'none';
+            debugInfo.style.display = 'none';
+            
+            console.log('Начинаем процесс регистрации...');
+            debugInfo.textContent = 'Шаг 1: Проверка совпадения паролей';
+            debugInfo.style.display = 'block';
+            
+            // Проверка совпадения паролей
+            if (password !== confirmPassword) {
+                errorMessage.textContent = 'Пароли не совпадают';
+                errorMessage.style.display = 'block';
+                debugInfo.textContent = 'Ошибка: Пароли не совпадают';
+                return;
+            }
+            
+            debugInfo.textContent = 'Шаг 2: Проверка длины пароля';
+            // Проверка длины пароля
+            if (password.length < 6) {
+                errorMessage.textContent = 'Пароль должен содержать не менее 6 символов';
+                errorMessage.style.display = 'block';
+                debugInfo.textContent = 'Ошибка: Пароль слишком короткий';
+                return;
+            }
+            
+            debugInfo.textContent = 'Шаг 3: Проверка формата email';
+            // Проверка формата email
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(email)) {
+                errorMessage.textContent = 'Введите действительный email адрес';
+                errorMessage.style.display = 'block';
+                debugInfo.textContent = 'Ошибка: Неверный формат email';
+                return;
+            }
+            
+            debugInfo.textContent = 'Шаг 4: Проверка, зарегистрирован ли уже пользователь';
+            // Проверяем, не зарегистрирован ли уже пользователь с таким email
+            let users = JSON.parse(localStorage.getItem('users')) || {};
+            console.log('Текущие пользователи:', users);
+            
+            if (users[email]) {
+                errorMessage.textContent = 'Пользователь с таким email уже зарегистрирован';
+                errorMessage.style.display = 'block';
+                debugInfo.textContent = 'Ошибка: Пользователь с таким email уже существует';
+                return;
+            }
+            
+            debugInfo.textContent = 'Шаг 5: Генерация случайного имени пользователя';
+            // Генерируем случайное имя пользователя
+            const randomUsername = generateRandomUsername();
+            
+            debugInfo.textContent = 'Шаг 6: Сохранение нового пользователя в localStorage';
+            // Сохраняем нового пользователя в localStorage
+            users = JSON.parse(localStorage.getItem('users')) || {}; // Обновляем переменную
+            users[email] = {
+                password: password, // В реальном приложении пароль должен быть захеширован
+                username: randomUsername,
+                registrationDate: new Date().toISOString()
+            };
+            
+            console.log('Новые пользователи:', users);
+            
+            try {
+                localStorage.setItem('users', JSON.stringify(users));
+                console.log('Данные успешно сохранены в localStorage');
+                debugInfo.textContent = 'Данные успешно сохранены в localStorage';
+            } catch (error) {
+                console.error('Ошибка при сохранении в localStorage:', error);
+                errorMessage.textContent = 'Ошибка при сохранении данных: ' + error.message;
+                errorMessage.style.display = 'block';
+                return;
+            }
+            
+            // В реальном приложении здесь был бы запрос к серверу
+            
+            debugInfo.textContent = 'Шаг 7: Имитация отправки уведомления на email';
+            // Имитация отправки уведомления на email (в реальном приложении здесь был бы запрос к серверу)
+            // Показываем сообщение об успехе
+            successMessage.style.display = 'block';
+            
+            debugInfo.textContent = 'Регистрация завершена. Перенаправление через 3 секунды...';
+            
+            // Через 3 секунды перенаправляем на страницу входа
+            setTimeout(function() {
+                window.location.href = 'login.html';
+            }, 3000);
+        });
+        
+        function togglePasswordVisibility(passwordFieldId, toggleButtonId) {
+            const passwordField = document.getElementById(passwordFieldId);
+            const toggleButton = document.getElementById(toggleButtonId);
+            
+            if (passwordField.type === 'password') {
+                passwordField.type = 'text';
+                // Обновляем иконку глаза
+                toggleButton.innerHTML = `
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M1 12C1 12 5 4 12 4C19 4 23 12 23 12C23 12 19 20 12 20C5 20 1 12 1 12Z" stroke="currentColor" stroke-width="2"/>
+                        <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/>
+                        <path d="M12 10L12 14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        <path d="M10 12L14 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                `;
+            } else {
+                passwordField.type = 'password';
+                // Обновляем иконку глаза
+                toggleButton.innerHTML = `
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M1 12C1 12 5 4 12 4C19 4 23 12 23 12C23 12 19 20 12 20C5 20 1 12 1 12Z" stroke="currentColor" stroke-width="2"/>
+                        <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/>
+                    </svg>
+                `;
+            }
+        }
+        
+        function generateRandomUsername() {
+            const adjectives = ['cool', 'super', 'amazing', 'awesome', 'epic', 'legendary', 'fantastic', 'wonderful', 'brilliant', 'fabulous'];
+            const nouns = ['user', 'gamer', 'ninja', 'hero', 'champion', 'warrior', 'wizard', 'master', 'pro', 'star'];
+            const number = Math.floor(1000 + Math.random() * 9000); // 4-значное число
+            
+            const randomAdjective = adjectives[Math.floor(Math.random() * adjectives.length)];
+            const randomNoun = nouns[Math.floor(Math.random() * nouns.length)];
+            
+            return `${randomAdjective}${randomNoun}${number}`;
+        }
+    </script>
+</body>
+</html>

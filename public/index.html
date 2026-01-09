@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EchoLink</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="authCheck">Проверка авторизации...</div>
+
+    <div class="app" style="display: none;">
+        <!-- Server sidebar -->
+        <div class="server-sidebar">
+            <div class="server-icon active">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 3L2 12H5V20H11V14H13V20H19V12H22L12 3Z" fill="currentColor"/>
+                </svg>
+            </div>
+        </div>
+
+        <!-- Channel sidebar -->
+        <div class="channel-sidebar">
+            <div class="server-header">
+                <h2>EchoLink Server</h2>
+            </div>
+
+            <div class="channels-container">
+                <div class="channel-category">TEXT CHANNELS</div>
+                <div class="channel"># general</div>
+                <div class="channel"># random</div>
+                <div class="channel"># announcements</div>
+
+                <div class="channel-category">VOICE CHANNELS</div>
+                <div class="channel voice-channel">🔊 General Voice</div>
+                <div class="channel voice-channel">🔊 Music Room</div>
+            </div>
+
+            <div class="friends-section">
+                <div class="channel-category">ДРУЗЬЯ</div>
+                <div class="add-friend-btn" onclick="showAddFriendModal()">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                    <span>Добавить друга</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main chat area -->
+        <div class="chat-area">
+            <div class="chat-header">
+                <span># general</span>
+            </div>
+
+            <div class="messages-container">
+                <div class="message">
+                    <div class="avatar">👤</div>
+                    <div class="message-content">
+                        <div class="username">User1</div>
+                        <div class="timestamp">Today at 10:30 AM</div>
+                        <div class="text">Hello everyone! Welcome to our Discord clone.</div>
+                    </div>
+                </div>
+
+                <div class="message">
+                    <div class="avatar">👥</div>
+                    <div class="message-content">
+                        <div class="username">User2</div>
+                        <div class="timestamp">Today at 10:32 AM</div>
+                        <div class="text">This looks amazing! Great job on the design.</div>
+                    </div>
+                </div>
+
+                <div class="message">
+                    <div class="avatar">👤</div>
+                    <div class="message-content">
+                        <div class="username">User1</div>
+                        <div class="timestamp">Today at 10:35 AM</div>
+                        <div class="text">Thanks! I tried to replicate Discord's UI as closely as possible.</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="message-input-container">
+                <input type="text" class="message-input" placeholder="Начни писать...">
+            </div>
+        </div>
+
+        <!-- User panel -->
+        <div class="user-panel">
+            <div class="user-info">
+                <div class="user-avatar">👤</div>
+                <div class="user-details">
+                    <div class="username" id="currentUsername">CurrentUser</div>
+                    <div class="user-status" id="currentUserTag">#000000</div>
+                </div>
+                <div class="user-actions">
+                    <button onclick="logout()">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M19 3H5C3.9 3 3 3.9 3 5V19C3 20.1 3.9 21 5 21H19C20.1 21 21 20.1 21 19V5C21 3.9 20.1 3 19 3ZM19 19H5V5H19V19Z" fill="currentColor"/>
+        <path d="M11 7H9V17H11V7Z" fill="currentColor"/>
+        <path d="M15 10V14H17V10H15Z" fill="currentColor"/>
+    </svg>
+</button>
+                    <button onclick="window.location.href='settings.html'">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 15C13.6569 15 15 13.6569 15 12C15 10.3431 13.6569 9 12 9C10.3431 9 9 10.3431 9 12C9 13.6569 10.3431 15 12 15Z" stroke="currentColor" stroke-width="2"/>
+        <path d="M19.0001 11.5H17.0001" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        <path d="M7.00012 11.5H5.00012" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        <path d="M16.93 7.5L15.5 6.07" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        <path d="M8.5 17.93L7.07 16.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        <path d="M16.93 16.5L15.5 17.93" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        <path d="M8.5 6.07L7.07 7.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+    </svg>
+</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Проверяем авторизацию при загрузке страницы
+        document.addEventListener('DOMContentLoaded', function() {
+            const token = localStorage.getItem('token');
+            const authCheckDiv = document.getElementById('authCheck');
+            const appDiv = document.querySelector('.app');
+
+            if (token) {
+                // Проверяем токен на сервере
+                fetch('/api/profile', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': 'Bearer ' + token
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.username) {
+                        // Пользователь авторизован, показываем приложение
+                        authCheckDiv.style.display = 'none';
+                        appDiv.style.display = 'flex';
+
+                        // Обновляем имя пользователя, аватар и уникальный номер
+                        document.getElementById('currentUsername').textContent = data.username;
+                        if (data.avatar) {
+                            document.querySelector('.user-avatar').textContent = data.avatar;
+                        }
+                        if (data.user_tag) {
+                            document.getElementById('currentUserTag').textContent = '#' + data.user_tag;
+                        }
+                    } else {
+                        // Токен недействителен, перенаправляем на страницу входа
+                        localStorage.removeItem('token');
+                        localStorage.removeItem('username');
+                        window.location.href = 'login.html';
+                    }
+                })
+                .catch(error => {
+                    console.error('Ошибка при проверке токена:', error);
+                    // При ошибке перенаправляем на страницу входа
+                    localStorage.removeItem('token');
+                    localStorage.removeItem('username');
+                    window.location.href = 'login.html';
+                });
+            } else {
+                // Пользователь не авторизован, перенаправляем на страницу входа
+                window.location.href = 'login.html';
+            }
+        });
+
+        // Функция выхода из системы
+        function logout() {
+            const confirmed = confirm('Вы уверены что хотите выйти из профиля?');
+            if (confirmed) {
+                localStorage.removeItem('token');
+                localStorage.removeItem('username');
+                window.location.href = 'login.html';
+            }
+        }
+    </script>
+    <script src="script.js"></script>
+<!-- Модальное окно для добавления друга -->
+<div id="addFriendModal" class="modal-overlay" style="display: none;">
+    <div class="modal">
+        <div class="modal-header">
+            <h2>Добавить друга</h2>
+            <button class="close-modal" onclick="closeAddFriendModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label for="friendTag">Введите тег пользователя</label>
+                <input type="text" id="friendTag" name="friendTag" placeholder="#000000" maxlength="6">
+            </div>
+            <button class="send-request-btn" onclick="sendFriendRequest()">Отправить запрос</button>
+            <div class="error-message" id="friendErrorMessage"></div>
+            <div class="success-message" id="friendSuccessMessage"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Функция для отображения модального окна добавления друга
+    function showAddFriendModal() {
+        document.getElementById('addFriendModal').style.display = 'flex';
+        document.getElementById('friendTag').focus();
+    }
+
+    // Функция для закрытия модального окна добавления друга
+    function closeAddFriendModal() {
+        document.getElementById('addFriendModal').style.display = 'none';
+        // Очищаем поля и сообщения
+        document.getElementById('friendTag').value = '';
+        document.getElementById('friendErrorMessage').style.display = 'none';
+        document.getElementById('friendSuccessMessage').style.display = 'none';
+    }
+
+    // Функция для отправки запроса в друзья
+    function sendFriendRequest() {
+        const friendTag = document.getElementById('friendTag').value.trim();
+        const token = localStorage.getItem('token');
+        const errorMessage = document.getElementById('friendErrorMessage');
+        const successMessage = document.getElementById('friendSuccessMessage');
+
+        // Сбрасываем сообщения
+        errorMessage.style.display = 'none';
+        successMessage.style.display = 'none';
+
+        // Проверяем, что тег введен и состоит из 6 цифр
+        if (!friendTag || friendTag.length !== 6 || !/^\d+$/.test(friendTag)) {
+            errorMessage.textContent = 'Пожалуйста, введите корректный 6-значный тег пользователя';
+            errorMessage.style.display = 'block';
+            return;
+        }
+
+        // Отправляем запрос на сервер
+        fetch('/api/friends/request', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + token
+            },
+            body: JSON.stringify({ userTag: friendTag })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.message) {
+                successMessage.textContent = data.message;
+                successMessage.style.display = 'block';
+
+                // Очищаем поле ввода
+                document.getElementById('friendTag').value = '';
+
+                // Закрываем модальное окно через 2 секунды
+                setTimeout(closeAddFriendModal, 2000);
+            } else {
+                errorMessage.textContent = data.message || 'Ошибка при отправке запроса';
+                errorMessage.style.display = 'block';
+            }
+        })
+        .catch(error => {
+            console.error('Ошибка при отправке запроса в друзья:', error);
+            errorMessage.textContent = 'Ошибка соединения с сервером';
+            errorMessage.style.display = 'block';
+        });
+    }
+
+    // Закрытие модального окна при клике вне его области
+    document.getElementById('addFriendModal').addEventListener('click', function(event) {
+        if (event.target === this) {
+            closeAddFriendModal();
+        }
+    });
+
+    // Закрытие модального окна при нажатии клавиши Escape
+    document.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape') {
+            const modal = document.getElementById('addFriendModal');
+            if (modal.style.display === 'flex') {
+                closeAddFriendModal();
+            }
+        }
+    });
+
+    // Проверяем авторизацию при загрузке страницы
+    document.addEventListener('DOMContentLoaded', function() {
+        const token = localStorage.getItem('token');
+        const authCheckDiv = document.getElementById('authCheck');
+        const appDiv = document.querySelector('.app');
+
+        if (token) {
+            // Проверяем токен на сервере
+            fetch('/api/profile', {
+                method: 'GET',
+                headers: {
+                    'Authorization': 'Bearer ' + token
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.username) {
+                    // Пользователь авторизован, показываем приложение
+                    authCheckDiv.style.display = 'none';
+                    appDiv.style.display = 'flex';
+
+                    // Обновляем имя пользователя, аватар и уникальный номер
+                    document.getElementById('currentUsername').textContent = data.username;
+                    if (data.avatar) {
+                        document.querySelector('.user-avatar').textContent = data.avatar;
+                    }
+                    if (data.user_tag) {
+                        document.getElementById('currentUserTag').textContent = '#' + data.user_tag;
+                    }
+                } else {
+                    // Токен недействителен, перенаправляем на страницу входа
+                    localStorage.removeItem('token');
+                    localStorage.removeItem('username');
+                    window.location.href = 'login.html';
+                }
+            })
+            .catch(error => {
+                console.error('Ошибка при проверке токена:', error);
+                // При ошибке перенаправляем на страницу входа
+                localStorage.removeItem('token');
+                localStorage.removeItem('username');
+                window.location.href = 'login.html';
+            });
+        } else {
+            // Пользователь не авторизован, перенаправляем на страницу входа
+            window.location.href = 'login.html';
+        }
+    });
+
+    // Функция выхода из системы
+    function logout() {
+        const confirmed = confirm('Вы уверены что хотите выйти из профиля?');
+        if (confirmed) {
+            localStorage.removeItem('token');
+            localStorage.removeItem('username');
+            window.location.href = 'login.html';
+        }
+    }
+
+    // Функция для отображения панели запросов в друзья
+    function showFriendRequestsPanel() {
+        const panel = document.getElementById('friendRequestsPanel');
+        panel.style.display = 'flex';
+
+        // Загружаем входящие запросы в друзья
+        loadIncomingFriendRequests();
+    }
+
+    // Функция для закрытия панели запросов в друзья
+    function closeFriendRequestsPanel() {
+        document.getElementById('friendRequestsPanel').style.display = 'none';
+    }
+
+    // Функция для загрузки входящих запросов в друзья
+    function loadIncomingFriendRequests() {
+        const token = localStorage.getItem('token');
+        const requestsList = document.getElementById('incomingRequestsList');
+
+        fetch('/api/friends/requests/incoming', {
+            method: 'GET',
+            headers: {
+                'Authorization': 'Bearer ' + token
+            }
+        })
+        .then(response => response.json())
+        .then(requests => {
+            // Очищаем список
+            requestsList.innerHTML = '';
+
+            if (requests.length === 0) {
+                requestsList.innerHTML = '<div class="no-requests">Нет входящих запросов</div>';
+                return;
+            }
+
+            // Добавляем каждый запрос в список
+            requests.forEach(request => {
+                const requestItem = document.createElement('div');
+                requestItem.className = 'request-item';
+
+                requestItem.innerHTML = `
+                    <div class="avatar">${request.avatar || '👤'}</div>
+                    <div class="user-info">
+                        <div class="username">${request.username}</div>
+                        <div class="user-tag">#${request.user_tag}</div>
+                    </div>
+                    <div class="request-actions">
+                        <button class="request-action-btn accept" onclick="acceptFriendRequest(${request.id})">✓</button>
+                        <button class="request-action-btn reject" onclick="rejectFriendRequest(${request.id})">×</button>
+                    </div>
+                `;
+
+                requestsList.appendChild(requestItem);
+            });
+        })
+        .catch(error => {
+            console.error('Ошибка при загрузке запросов в друзья:', error);
+            requestsList.innerHTML = '<div class="error-loading">Ошибка загрузки запросов</div>';
+        });
+    }
+
+    // Функция для принятия запроса в друзья
+    function acceptFriendRequest(requestId) {
+        const token = localStorage.getItem('token');
+
+        fetch(`/api/friends/requests/${requestId}/accept`, {
+            method: 'POST',
+            headers: {
+                'Authorization': 'Bearer ' + token
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.message) {
+                alert(data.message);
+                // Обновляем список запросов
+                loadIncomingFriendRequests();
+            } else {
+                alert(data.message || 'Ошибка при принятии запроса');
+            }
+        })
+        .catch(error => {
+            console.error('Ошибка при принятии запроса в друзья:', error);
+            alert('Ошибка соединения с сервером');
+        });
+    }
+
+    // Функция для отклонения запроса в друзья
+    function rejectFriendRequest(requestId) {
+        const token = localStorage.getItem('token');
+
+        fetch(`/api/friends/requests/${requestId}/reject`, {
+            method: 'POST',
+            headers: {
+                'Authorization': 'Bearer ' + token
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.message) {
+                alert(data.message);
+                // Обновляем список запросов
+                loadIncomingFriendRequests();
+            } else {
+                alert(data.message || 'Ошибка при отклонении запроса');
+            }
+        })
+        .catch(error => {
+            console.error('Ошибка при отклонении запроса в друзья:', error);
+            alert('Ошибка соединения с сервером');
+        });
+    }
+
+    // Добавим обработчик клика на иконку пользователя, чтобы показывать панель запросов
+    document.addEventListener('DOMContentLoaded', function() {
+        // Добавим обработчик для показа панели запросов в друзья при клике на аватар пользователя
+        const userInfoPanel = document.querySelector('.user-info-panel');
+        if (userInfoPanel) {
+            userInfoPanel.addEventListener('click', function(event) {
+                // Проверяем, что клик был не по кнопкам выхода или настроек
+                if (!event.target.closest('.user-actions button')) {
+                    showFriendRequestsPanel();
+                }
+            });
+        }
+    });
+</script>
+</body>
+</html>

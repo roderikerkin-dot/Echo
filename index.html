@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Discord Clone</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="authCheck">Проверка авторизации...</div>
+
+    <div class="app" style="display: none;">
+        <!-- Server sidebar -->
+        <div class="server-sidebar">
+            <div class="server-icon active">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 3L2 12H5V20H11V14H13V20H19V12H22L12 3Z" fill="currentColor"/>
+                </svg>
+            </div>
+        </div>
+
+        <!-- Channel sidebar -->
+        <div class="channel-sidebar">
+            <div class="server-header">
+                <h2>General Server</h2>
+            </div>
+
+            <div class="channels-container">
+                <div class="channel-category">TEXT CHANNELS</div>
+                <div class="channel"># general</div>
+                <div class="channel"># random</div>
+                <div class="channel"># announcements</div>
+
+                <div class="channel-category">VOICE CHANNELS</div>
+                <div class="channel voice-channel">🔊 General Voice</div>
+                <div class="channel voice-channel">🔊 Music Room</div>
+            </div>
+        </div>
+
+        <!-- Main chat area -->
+        <div class="chat-area">
+            <div class="chat-header">
+                <span># general</span>
+            </div>
+
+            <div class="messages-container">
+                <div class="message">
+                    <div class="avatar">👤</div>
+                    <div class="message-content">
+                        <div class="username">User1</div>
+                        <div class="timestamp">Today at 10:30 AM</div>
+                        <div class="text">Hello everyone! Welcome to our Discord clone.</div>
+                    </div>
+                </div>
+
+                <div class="message">
+                    <div class="avatar">👥</div>
+                    <div class="message-content">
+                        <div class="username">User2</div>
+                        <div class="timestamp">Today at 10:32 AM</div>
+                        <div class="text">This looks amazing! Great job on the design.</div>
+                    </div>
+                </div>
+
+                <div class="message">
+                    <div class="avatar">👤</div>
+                    <div class="message-content">
+                        <div class="username">User1</div>
+                        <div class="timestamp">Today at 10:35 AM</div>
+                        <div class="text">Thanks! I tried to replicate Discord's UI as closely as possible.</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="message-input-container">
+                <input type="text" class="message-input" placeholder="Начни писать...">
+            </div>
+        </div>
+
+        <!-- User panel -->
+        <div class="user-panel">
+            <div class="user-info">
+                <div class="user-avatar">👤</div>
+                <div class="user-details">
+                    <div class="username" id="currentUsername">CurrentUser</div>
+                    <div class="user-status">#4567</div>
+                </div>
+                <div class="user-actions">
+                    <button onclick="logout()">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M19 3H5C3.9 3 3 3.9 3 5V19C3 20.1 3.9 21 5 21H19C20.1 21 21 20.1 21 19V5C21 3.9 20.1 3 19 3ZM19 19H5V5H19V19Z" fill="currentColor"/>
+        <path d="M11 7H9V17H11V7Z" fill="currentColor"/>
+        <path d="M15 10V14H17V10H15Z" fill="currentColor"/>
+    </svg>
+</button>
+                    <button onclick="window.location.href='settings.html'">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 15C13.6569 15 15 13.6569 15 12C15 10.3431 13.6569 9 12 9C10.3431 9 9 10.3431 9 12C9 13.6569 10.3431 15 12 15Z" stroke="currentColor" stroke-width="2"/>
+        <path d="M19.0001 11.5H17.0001" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        <path d="M7.00012 11.5H5.00012" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        <path d="M16.93 7.5L15.5 6.07" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        <path d="M8.5 17.93L7.07 16.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        <path d="M16.93 16.5L15.5 17.93" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        <path d="M8.5 6.07L7.07 7.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+    </svg>
+</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Проверяем авторизацию при загрузке страницы
+        document.addEventListener('DOMContentLoaded', function() {
+            const isLoggedIn = localStorage.getItem('isLoggedIn');
+            const authCheckDiv = document.getElementById('authCheck');
+            const appDiv = document.querySelector('.app');
+
+            if (isLoggedIn === 'true') {
+                // Пользователь авторизован, показываем приложение
+                authCheckDiv.style.display = 'none';
+                appDiv.style.display = 'flex';
+
+                // Обновляем имя пользователя
+                const email = localStorage.getItem('username'); // email хранится в 'username'
+                const users = JSON.parse(localStorage.getItem('users')) || {};
+                const user = users[email];
+                const displayName = user ? user.username : email; // Используем случайное имя пользователя, если оно есть
+
+                document.getElementById('currentUsername').textContent = displayName;
+            } else {
+                // Пользователь не авторизован, перенаправляем на страницу входа
+                window.location.href = 'login.html';
+            }
+        });
+
+        // Функция выхода из системы
+        function logout() {
+            const confirmed = confirm('Вы уверены что хотите выйти из профиля?');
+            if (confirmed) {
+                localStorage.removeItem('isLoggedIn');
+                localStorage.removeItem('username');
+                window.location.href = 'login.html';
+            }
+        }
+    </script>
+    <script src="script.js"></script>
+</body>
+</html>

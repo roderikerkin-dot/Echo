@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Discord Clone</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'gg sans', 'Noto Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .login-container {
+            background-color: rgba(32, 34, 37, 0.8);
+            backdrop-filter: blur(10px);
+            border-radius: 10px;
+            padding: 30px;
+            width: 400px;
+            max-width: 90%;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .login-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .login-header h1 {
+            color: #ffffff;
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+
+        .login-form {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            color: #b9bbbe;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            background-color: #18191c;
+            border: 1px solid #202225;
+            border-radius: 4px;
+            color: #ffffff;
+            font-size: 16px;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #5865f2;
+        }
+
+        .submit-btn {
+            background-color: #5865f2;
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 4px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .submit-btn:hover {
+            background-color: #4752c4;
+        }
+
+        .register-btn {
+            background-color: transparent;
+            color: #b9bbbe;
+            border: 1px solid #202225;
+            padding: 12px;
+            border-radius: 4px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.2s, color 0.2s;
+            margin-top: 10px;
+            width: 100%;
+        }
+
+        .register-btn:hover {
+            background-color: #202225;
+            color: #ffffff;
+        }
+
+        .toggle-password-btn {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: #b9bbbe;
+            cursor: pointer;
+            padding: 4px;
+        }
+
+        .toggle-password-btn:hover {
+            color: #ffffff;
+        }
+
+        .profile-select {
+            width: 100%;
+            padding: 10px;
+            background-color: #18191c;
+            border: 1px solid #202225;
+            border-radius: 4px;
+            color: #ffffff;
+            font-size: 16px;
+        }
+
+        .error-message {
+            color: #f23f43;
+            font-size: 14px;
+            margin-top: 10px;
+            text-align: center;
+            display: none;
+        }
+
+        .logo {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .logo svg {
+            width: 60px;
+            height: 60px;
+            fill: #ffffff;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="logo">
+            <svg width="60" height="60" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 3L2 12H5V20H11V14H13V20H19V12H22L12 3Z" fill="currentColor"/>
+            </svg>
+        </div>
+        <div class="login-header">
+            <h1>Вход в Discord Clone</h1>
+        </div>
+        <form class="login-form" id="loginForm">
+            <div class="form-group">
+                <label for="username">Email</label>
+                <input type="text" id="username" name="username" placeholder="Введите ваш email" required>
+            </div>
+            <div class="form-group">
+                <label for="password">Пароль</label>
+                <div style="position: relative;">
+                    <input type="password" id="password" name="password" placeholder="Введите ваш пароль" required style="padding-right: 40px;">
+                    <button type="button" id="toggleLoginPassword" class="toggle-password-btn" onclick="toggleLoginPasswordVisibility()">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M1 12C1 12 5 4 12 4C19 4 23 12 23 12C23 12 19 20 12 20C5 20 1 12 1 12Z" stroke="currentColor" stroke-width="2"/>
+                            <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            <button type="submit" class="submit-btn">Войти</button>
+            <div class="error-message" id="errorMessage">Неверный логин или пароль</div>
+            <button type="button" class="register-btn" onclick="showRegisterMessage()">Регистрация</button>
+        </form>
+    </div>
+
+    <script>
+        document.getElementById('loginForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const errorMessage = document.getElementById('errorMessage');
+
+            // Проверяем логин и пароль из localStorage
+            const users = JSON.parse(localStorage.getItem('users')) || {};
+
+            // Проверяем, есть ли пользователь с таким email и правильный ли пароль
+            if (users[username] && users[username].password === password) {
+                // Сохраняем информацию о пользователе в localStorage
+                localStorage.setItem('isLoggedIn', 'true');
+                localStorage.setItem('username', username);
+
+                // Переходим на основной сайт
+                window.location.href = 'index.html';
+            } else {
+                // Показываем сообщение об ошибке
+                errorMessage.style.display = 'block';
+
+                // Скрываем сообщение об ошибке через 3 секунды
+                setTimeout(function() {
+                    errorMessage.style.display = 'none';
+                }, 3000);
+            }
+        });
+
+        function showRegisterMessage() {
+            window.location.href = 'register.html';
+        }
+
+        function toggleLoginPasswordVisibility() {
+            const passwordField = document.getElementById('password');
+            const toggleButton = document.getElementById('toggleLoginPassword');
+
+            if (passwordField.type === 'password') {
+                passwordField.type = 'text';
+                // Обновляем иконку глаза
+                toggleButton.innerHTML = `
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M1 12C1 12 5 4 12 4C19 4 23 12 23 12C23 12 19 20 12 20C5 20 1 12 1 12Z" stroke="currentColor" stroke-width="2"/>
+                        <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/>
+                        <path d="M12 10L12 14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        <path d="M10 12L14 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                `;
+            } else {
+                passwordField.type = 'password';
+                // Обновляем иконку глаза
+                toggleButton.innerHTML = `
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M1 12C1 12 5 4 12 4C19 4 23 12 23 12C23 12 19 20 12 20C5 20 1 12 1 12Z" stroke="currentColor" stroke-width="2"/>
+                        <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/>
+                    </svg>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>
