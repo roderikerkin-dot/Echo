@@ -277,7 +277,16 @@
                 },
                 body: JSON.stringify({ userTag: friendTag })
             })
-            .then(response => response.json())
+            .then(async response => {
+                if (response.ok) {
+                    return response.json();
+                } else {
+                    // Если ответ не OK, получаем текст ошибки
+                    const errorText = await response.text();
+                    console.error('Ошибка сервера:', errorText);
+                    throw new Error(`Сервер вернул ошибку: ${response.status} - ${errorText}`);
+                }
+            })
             .then(data => {
                 if (data.message) {
                     successMessage.textContent = data.message;
@@ -295,7 +304,7 @@
             })
             .catch(error => {
                 console.error('Ошибка при отправке запроса в друзья:', error);
-                errorMessage.textContent = 'Ошибка соединения с сервером';
+                errorMessage.textContent = `Ошибка соединения с сервером: ${error.message}`;
                 errorMessage.style.display = 'block';
             });
         }
