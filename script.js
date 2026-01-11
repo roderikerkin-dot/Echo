@@ -274,12 +274,15 @@ function addFriendToList(friend) {
 
 // Функция для отображения панели уведомлений о заявках в друзья
 async function showFriendRequestsNotification() {
+    console.log('showFriendRequestsNotification вызвана');
     const notification = document.getElementById('friendRequestsNotification');
     const requestsList = document.getElementById('incomingRequestsListSmall');
 
     // Загружаем входящие запросы в друзья
     try {
         const token = localStorage.getItem('token');
+        console.log('Токен:', token);
+
         const response = await fetch('/api/friends/requests/incoming', {
             method: 'GET',
             headers: {
@@ -287,8 +290,11 @@ async function showFriendRequestsNotification() {
             }
         });
 
+        console.log('Ответ от сервера:', response.status);
+
         if (response.ok) {
             const requests = await response.json();
+            console.log('Полученные запросы:', requests);
 
             // Очищаем список
             requestsList.innerHTML = '';
@@ -296,6 +302,7 @@ async function showFriendRequestsNotification() {
             if (requests.length === 0) {
                 requestsList.innerHTML = '<div class="no-requests-small">Нет входящих запросов</div>';
                 notification.style.display = 'block';
+                console.log('Нет входящих запросов');
                 return;
             }
 
@@ -320,7 +327,10 @@ async function showFriendRequestsNotification() {
             });
 
             notification.style.display = 'block';
+            console.log('Панель уведомлений отображена');
         } else {
+            const errorText = await response.text();
+            console.error('Ошибка ответа от сервера:', response.status, errorText);
             requestsList.innerHTML = '<div class="error-loading-small">Ошибка загрузки запросов</div>';
             notification.style.display = 'block';
         }
