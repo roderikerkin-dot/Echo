@@ -66,14 +66,32 @@ async function loadPrivateMessages() {
 
 // Функция для добавления сообщения в DOM
 function addMessageToDOM(message) {
+    // Форматируем дату и время в формат дд.мм.гг\чч:мм
+    let formattedTimestamp = message.timestamp;
+    if (message.timestamp) {
+        try {
+            const date = new Date(message.timestamp);
+            const day = String(date.getDate()).padStart(2, '0');
+            const month = String(date.getMonth() + 1).padStart(2, '0'); // Месяцы начинаются с 0
+            const year = String(date.getFullYear()).slice(-2); // Последние 2 цифры года
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+
+            formattedTimestamp = `${day}.${month}.${year}\\${hours}:${minutes}`;
+        } catch (e) {
+            // Если не удалось распарсить дату, оставляем как есть
+            formattedTimestamp = message.timestamp;
+        }
+    }
+
     const messageElement = document.createElement('div');
     messageElement.className = 'message';
 
     messageElement.innerHTML = `
         <div class="avatar">${message.avatar || '👤'}</div>
         <div class="message-content">
-            <div class="username">${message.username}</div>
-            <div class="timestamp">${message.timestamp}</div>
+            <div class="username">${message.username || 'Unknown'}</div>
+            <div class="timestamp">${formattedTimestamp}</div>
             <div class="text">${message.text}</div>
         </div>
     `;
