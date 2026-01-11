@@ -109,12 +109,45 @@ async function sendPrivateMessage(text) {
 }
 
 // Функция для отображения сообщений текущего приватного чата
-function displayPrivateChat() {
-    // Обновляем заголовок чата
-    chatHeader.textContent = `@${currentPrivateChatUser}`;
+async function displayPrivateChat() {
+    if (!currentPrivateChatUser) {
+        // Если пользователь не выбран, показываем пустое сообщение или инструкцию
+        chatHeader.textContent = 'Выберите друга для начала чата';
+        messageInput.placeholder = 'Выберите друга для отправки сообщения...';
+        messagesContainer.innerHTML = '<div class="no-conversation-selected">Выберите пользователя для начала чата</div>';
+        return;
+    }
 
-    // Обновляем подпись в поле ввода
-    messageInput.placeholder = `Сообщение для @${currentPrivateChatUser}...`;
+    try {
+        // Получаем информацию о пользователе по тегу
+        const token = localStorage.getItem('token');
+        const response = await fetch('/api/users/by-tag/' + currentPrivateChatUser, {
+            method: 'GET',
+            headers: {
+                'Authorization': 'Bearer ' + token
+            }
+        });
+
+        if (response.ok) {
+            const userData = await response.json();
+            const displayName = userData.username || currentPrivateChatUser;
+
+            // Обновляем заголовок чата
+            chatHeader.textContent = `@${displayName}#${currentPrivateChatUser}`;
+
+            // Обновляем подпись в поле ввода
+            messageInput.placeholder = `Сообщение для @${displayName}#${currentPrivateChatUser}...`;
+        } else {
+            // Если не удалось получить имя пользователя, используем тег
+            chatHeader.textContent = `@${currentPrivateChatUser}`;
+            messageInput.placeholder = `Сообщение для @${currentPrivateChatUser}...`;
+        }
+    } catch (error) {
+        console.error('Ошибка при получении информации о пользователе:', error);
+        // В случае ошибки используем тег
+        chatHeader.textContent = `@${currentPrivateChatUser}`;
+        messageInput.placeholder = `Сообщение для @${currentPrivateChatUser}...`;
+    }
 
     // Загружаем сообщения с сервера
     loadPrivateMessages();
