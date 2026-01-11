@@ -3,12 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EchoLink - Chat Application</title>
+    <title>EchoLink</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <div id="welcomeSection" class="welcome-section">
         <div class="welcome-content">
+            <div class="logo">
+                <svg width="60" height="60" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 3L2 12H5V20H11V14H13V20H19V12H22L12 3Z" fill="currentColor"/>
+                </svg>
+            </div>
             <h1>Добро пожаловать в EchoLink</h1>
             <p>Присоединяйтесь к нашему чат-приложению для общения с друзьями и коллегами</p>
             <div class="welcome-buttons">
@@ -453,6 +458,17 @@
             padding: 20px;
         }
 
+        .logo {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .logo svg {
+            width: 60px;
+            height: 60px;
+            fill: #ffffff;
+        }
+
         .welcome-content h1 {
             font-size: 2.5rem;
             margin-bottom: 1rem;
@@ -492,167 +508,6 @@
             background-color: transparent;
             color: white;
             border: 1px solid #B5BAC1;
-        }
-
-        .modal-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.7);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-        }
-
-        .modal {
-            background-color: #36393F;
-            border-radius: 8px;
-            width: 400px;
-            max-width: 90%;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
-        }
-
-        .modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 16px;
-            border-bottom: 1px solid #202225;
-        }
-
-        .modal-header h2 {
-            margin: 0;
-            color: white;
-        }
-
-        .close-modal {
-            background: none;
-            border: none;
-            color: #B5BAC1;
-            font-size: 24px;
-            cursor: pointer;
-        }
-
-        .modal-body {
-            padding: 16px;
-        }
-
-        .form-group {
-            margin-bottom: 16px;
-        }
-
-        .form-group label {
-            display: block;
-            color: #B5BAC1;
-            margin-bottom: 8px;
-        }
-
-        .form-group input {
-            width: 100%;
-            padding: 10px;
-            background-color: #202225;
-            border: 1px solid #40444B;
-            border-radius: 4px;
-            color: white;
-        }
-
-        .send-request-btn {
-            width: 100%;
-            padding: 10px;
-            background-color: #5865F2;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-
-        .send-request-btn:hover {
-            background-color: #4752C4;
-        }
-
-        .error-message {
-            color: #F23F43;
-            text-align: center;
-            margin-top: 10px;
-            display: none;
-        }
-
-        .success-message {
-            color: #3BA55D;
-            text-align: center;
-            margin-top: 10px;
-            display: none;
-        }
-
-        .request-item {
-            display: flex;
-            align-items: center;
-            padding: 12px;
-            border-bottom: 1px solid #202225;
-        }
-
-        .request-item:last-child {
-            border-bottom: none;
-        }
-
-        .avatar {
-            font-size: 24px;
-            margin-right: 12px;
-        }
-
-        .user-info {
-            flex: 1;
-        }
-
-        .username {
-            color: white;
-            font-weight: bold;
-        }
-
-        .user-tag {
-            color: #B5BAC1;
-            font-size: 14px;
-        }
-
-        .request-actions {
-            display: flex;
-            gap: 8px;
-        }
-
-        .request-action-btn {
-            width: 32px;
-            height: 32px;
-            border-radius: 50%;
-            border: none;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .accept {
-            background-color: #3BA55D;
-            color: white;
-        }
-
-        .reject {
-            background-color: #F23F43;
-            color: white;
-        }
-
-        .no-requests {
-            text-align: center;
-            color: #B5BAC1;
-            padding: 20px;
-        }
-
-        .error-loading {
-            text-align: center;
-            color: #F23F43;
-            padding: 20px;
         }
     </style>
 </body>
