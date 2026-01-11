@@ -143,19 +143,19 @@ async function updateFriendsList() {
 
         if (response.ok) {
             const friends = await response.json();
-            const friendsSection = document.querySelector('.friends-section');
+            const friendsList = document.getElementById('friends-list'); // Список в "ЛИЧНЫЕ СООБЩЕНИЯ"
+            const friendsSection = document.querySelector('.friends-section'); // Старый список "ДРУЗЬЯ"
 
-            // Очищаем текущий список друзей
-            const existingFriends = friendsSection.querySelectorAll('.friend-item');
-            existingFriends.forEach(friend => friend.remove());
+            // Очищаем текущий список друзей в "ЛИЧНЫЕ СООБЩЕНИЯ"
+            friendsList.innerHTML = '';
 
-            // Добавляем друзей в список
+            // Добавляем друзей в список "ЛИЧНЫЕ СООБЩЕНИЯ"
             friends.forEach(friend => {
                 const friendElement = document.createElement('div');
                 friendElement.className = 'friend-item channel';
                 friendElement.innerHTML = `
                     <div class="avatar">${friend.avatar || '👤'}</div>
-                    <span>${friend.username}<span class="user-tag">#${friend.user_tag}</span></span>
+                    <span class="friend-username">${friend.username}<span class="user-tag">#${friend.user_tag}</span></span>
                 `;
 
                 // Добавляем обработчик клика для начала приватного чата
@@ -175,7 +175,7 @@ async function updateFriendsList() {
                     displayPrivateChat();
                 });
 
-                friendsSection.appendChild(friendElement);
+                friendsList.appendChild(friendElement);
             });
         }
     } catch (error) {
@@ -243,7 +243,7 @@ async function updateFriendsList() {
 
 // Функция для обновления списка друзей при добавлении нового друга
 function addFriendToList(friend) {
-    const friendsList = document.getElementById('friends-list');
+    const friendsList = document.getElementById('friends-list'); // Список в "ЛИЧНЫЕ СООБЩЕНИЯ"
 
     const friendElement = document.createElement('div');
     friendElement.className = 'friend-item channel';
