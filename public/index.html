@@ -136,6 +136,19 @@
         </div>
     </div>
 
+    <!-- Панель уведомлений о заявках в друзья -->
+    <div id="friendRequestsNotification" class="friend-requests-notification">
+        <div class="notification-header">
+            <h3>Заявки в друзья</h3>
+            <button class="close-notification" onclick="closeFriendRequestsNotification()">&times;</button>
+        </div>
+        <div class="notification-body">
+            <div id="incomingRequestsListSmall">
+                <!-- Список запросов будет загружен динамически -->
+            </div>
+        </div>
+    </div>
+
     <!-- Модальное окно для добавления друга -->
     <div id="addFriendModal" class="modal-overlay" style="display: none;">
         <div class="modal">
@@ -520,6 +533,123 @@
             background-color: transparent;
             color: white;
             border: 1px solid #B5BAC1;
+        }
+
+        .friend-requests-notification {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 300px;
+            background-color: #2f3136;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            display: none;
+        }
+
+        .notification-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 16px;
+            border-bottom: 1px solid #202225;
+        }
+
+        .notification-header h3 {
+            margin: 0;
+            color: white;
+            font-size: 16px;
+        }
+
+        .close-notification {
+            background: none;
+            border: none;
+            color: #b9bbbe;
+            font-size: 20px;
+            cursor: pointer;
+        }
+
+        .close-notification:hover {
+            color: white;
+        }
+
+        .notification-body {
+            padding: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .request-item-small {
+            display: flex;
+            align-items: center;
+            padding: 8px;
+            border-radius: 4px;
+            margin-bottom: 8px;
+        }
+
+        .request-item-small:hover {
+            background-color: #36393f;
+        }
+
+        .avatar-small {
+            font-size: 20px;
+            margin-right: 10px;
+        }
+
+        .user-info-small {
+            flex: 1;
+        }
+
+        .username-small {
+            color: white;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        .user-tag-small {
+            color: #b9bbbe;
+            font-size: 12px;
+        }
+
+        .request-actions-small {
+            display: flex;
+            gap: 4px;
+        }
+
+        .request-action-btn-small {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+        }
+
+        .accept-small {
+            background-color: #3ba55d;
+            color: white;
+        }
+
+        .reject-small {
+            background-color: #f23f43;
+            color: white;
+        }
+
+        .no-requests-small {
+            text-align: center;
+            color: #b9bbbe;
+            padding: 20px;
+            font-size: 14px;
+        }
+
+        .error-loading-small {
+            text-align: center;
+            color: #f23f43;
+            padding: 20px;
+            font-size: 14px;
         }
     </style>
 </body>

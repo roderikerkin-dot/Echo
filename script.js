@@ -271,3 +271,138 @@ function addFriendToList(friend) {
 
     friendsList.appendChild(friendElement);
 }
+
+// Функция для отображения панели уведомлений о заявках в друзья
+async function showFriendRequestsNotification() {
+    const notification = document.getElementById('friendRequestsNotification');
+    const requestsList = document.getElementById('incomingRequestsListSmall');
+
+    // Загружаем входящие запросы в друзья
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch('/api/friends/requests/incoming', {
+            method: 'GET',
+            headers: {
+                'Authorization': 'Bearer ' + token
+            }
+        });
+
+        if (response.ok) {
+            const requests = await response.json();
+
+            // Очищаем список
+            requestsList.innerHTML = '';
+
+            if (requests.length === 0) {
+                requestsList.innerHTML = '<div class="no-requests-small">Нет входящих запросов</div>';
+                notification.style.display = 'block';
+                return;
+            }
+
+            // Добавляем каждый запрос в список
+            requests.forEach(request => {
+                const requestItem = document.createElement('div');
+                requestItem.className = 'request-item-small';
+
+                requestItem.innerHTML = `
+                    <div class="avatar-small">${request.avatar || '👤'}</div>
+                    <div class="user-info-small">
+                        <div class="username-small">${request.username}</div>
+                        <div class="user-tag-small">#${request.user_tag}</div>
+                    </div>
+                    <div class="request-actions-small">
+                        <button class="request-action-btn-small accept-small" onclick="acceptFriendRequestFromNotification(${request.id})">✓</button>
+                        <button class="request-action-btn-small reject-small" onclick="rejectFriendRequestFromNotification(${request.id})">×</button>
+                    </div>
+                `;
+
+                requestsList.appendChild(requestItem);
+            });
+
+            notification.style.display = 'block';
+        } else {
+            requestsList.innerHTML = '<div class="error-loading-small">Ошибка загрузки запросов</div>';
+            notification.style.display = 'block';
+        }
+    } catch (error) {
+        console.error('Ошибка при загрузке запросов в друзья:', error);
+        requestsList.innerHTML = '<div class="error-loading-small">Ошибка загрузки запросов</div>';
+        notification.style.display = 'block';
+    }
+}
+
+// Функция для закрытия панели уведомлений о заявках в друзья
+function closeFriendRequestsNotification() {
+    document.getElementById('friendRequestsNotification').style.display = 'none';
+}
+
+// Функция для принятия запроса в друзья из уведомления
+async function acceptFriendRequestFromNotification(requestId) {
+    try {
+        const token = localStorage.getItem('token');
+
+        const response = await fetch(`/api/friends/requests/${requestId}/accept`, {
+            method: 'POST',
+            headers: {
+                'Authorization': 'Bearer ' + token
+            }
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            alert(data.message);
+
+            // Обновляем список запросов
+            showFriendRequestsNotification();
+
+            // Также обновляем список друзей
+            updateFriendsList();
+        } else {
+            const errorData = await response.json();
+            alert(errorData.message || 'Ошибка при принятии запроса');
+        }
+    } catch (error) {
+        console.error('Ошибка при принятии запроса в друзья:', error);
+        alert('Ошибка соединения с сервером');
+    }
+}
+
+// Функция для отклонения запроса в друзья из уведомления
+async function rejectFriendRequestFromNotification(requestId) {
+    try {
+        const token = localStorage.getItem('token');
+
+        const response = await fetch(`/api/friends/requests/${requestId}/reject`, {
+            method: 'POST',
+            headers: {
+                'Authorization': 'Bearer ' + token
+            }
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            alert(data.message);
+
+            // Обновляем список запросов
+            showFriendRequestsNotification();
+        } else {
+            const errorData = await response.json();
+            alert(errorData.message || 'Ошибка при отклонении запроса');
+        }
+    } catch (error) {
+        console.error('Ошибка при отклонении запроса в друзья:', error);
+        alert('Ошибка соединения с сервером');
+    }
+}
+
+// Показываем уведомления о заявках в друзья при загрузке
+document.addEventListener('DOMContentLoaded', function() {
+    // Обновляем список друзей
+    updateFriendsList();
+
+    // Показываем уведомления о заявках в друзья
+    setTimeout(showFriendRequestsNotification, 2000); // Показываем через 2 секунды после загрузки
+
+    // Обновляем уведомления каждые 30 секунд
+    setInterval(showFriendRequestsNotification, 30000);
+});
