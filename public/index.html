@@ -134,19 +134,22 @@
                 </div>
             </div>
         </div>
+    </div>
 
-        <!-- Панель уведомлений о заявках в друзья -->
-        <div id="friendRequestsNotification" class="friend-requests-notification">
-            <div class="notification-header">
-                <h3>Заявки в друзья</h3>
-            </div>
-            <div class="notification-body">
-                <div id="incomingRequestsListSmall">
-                    <!-- Список запросов будет загружен динамически -->
-                </div>
+    <!-- Панель уведомлений о заявках в друзья -->
+    <div id="friendRequestsNotification" class="friend-requests-notification">
+        <div class="notification-header">
+            <h3>Заявки в друзья</h3>
+            <button class="close-notification" onclick="closeFriendRequestsNotification()">&times;</button>
+        </div>
+        <div class="notification-body">
+            <div id="incomingRequestsListSmall">
+                <!-- Список запросов будет загружен динамически -->
             </div>
         </div>
     </div>
+
+    <!-- Модальное окно для добавления друга -->
     <div id="addFriendModal" class="modal-overlay" style="display: none;">
         <div class="modal">
             <div class="modal-header">
@@ -540,16 +543,15 @@
         }
 
         .friend-requests-notification {
-            width: 100%;
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 300px;
             background-color: #2f3136;
             border-radius: 8px;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
             z-index: 1000;
-            margin-top: 10px;
-            max-height: 200px;
-            overflow-y: auto;
-            /* Показываем уведомления по умолчанию */
-            display: block;
+            display: none;
         }
 
         .notification-header {
