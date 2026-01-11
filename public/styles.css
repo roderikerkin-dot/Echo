@@ -496,6 +496,16 @@ body {
     line-height: 1.4;
 }
 
+.no-messages {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100%;
+    color: #72767d;
+    font-style: italic;
+    font-size: 16px;
+}
+
 .message-input-container {
     padding: 16px;
     margin: 0 16px;

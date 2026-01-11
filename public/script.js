@@ -37,12 +37,16 @@ async function loadPrivateMessages() {
             messagesContainer.innerHTML = '';
 
             // Добавляем сообщения в контейнер
-            messages.forEach(message => {
-                addMessageToDOM(message);
-            });
+            if (messages.length === 0) {
+                messagesContainer.innerHTML = '<div class="no-messages">Нет сообщений. Начните разговор!</div>';
+            } else {
+                messages.forEach(message => {
+                    addMessageToDOM(message);
+                });
 
-            // Прокручиваем к последнему сообщению
-            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                // Прокручиваем к последнему сообщению
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            }
         } else {
             // Если запрос не удался, показываем сообщение об ошибке
             messagesContainer.innerHTML = '<div class="error-loading">Ошибка загрузки сообщений</div>';
