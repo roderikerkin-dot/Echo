@@ -136,6 +136,8 @@ async function sendPrivateMessage(text) {
         if (response.ok) {
             // Если сообщение успешно отправлено, обновляем чат
             loadPrivateMessages();
+            // Обновляем список контактов
+            updateFriendsList();
             // Очищаем поле ввода
             messageInput.value = '';
         } else {
@@ -215,52 +217,88 @@ messageInput.addEventListener('keypress', function(e) {
 async function updateFriendsList() {
     try {
         const token = localStorage.getItem('token');
-        const response = await fetch('/api/friends', {
+
+        // Загружаем друзей
+        const friendsResponse = await fetch('/api/friends', {
             method: 'GET',
             headers: {
                 'Authorization': 'Bearer ' + token
             }
         });
 
-        if (response.ok) {
-            const friends = await response.json();
-            const friendsList = document.getElementById('friends-list'); // Список в "ЛИЧНЫЕ СООБЩЕНИЯ"
-            const friendsSection = document.querySelector('.friends-section'); // Старый список "ДРУЗЬЯ"
+        // Загружаем последние переписки
+        const messagesResponse = await fetch('/api/messages/private', {
+            method: 'GET',
+            headers: {
+                'Authorization': 'Bearer ' + token
+            }
+        });
 
-            // Очищаем текущий список друзей в "ЛИЧНЫЕ СООБЩЕНИЯ"
-            friendsList.innerHTML = '';
+        let allContacts = [];
 
-            // Добавляем друзей в список "ЛИЧНЫЕ СООБЩЕНИЯ"
-            friends.forEach(friend => {
-                const friendElement = document.createElement('div');
-                friendElement.className = 'friend-item channel';
-                friendElement.innerHTML = `
-                    <div class="avatar">${friend.avatar || '👤'}</div>
-                    <span class="friend-username">${friend.username}<span class="user-tag">#${friend.user_tag}</span></span>
-                `;
+        if (friendsResponse.ok) {
+            const friends = await friendsResponse.json();
+            // Добавляем друзей в список контактов
+            allContacts.push(...friends);
+        }
 
-                // Добавляем обработчик клика для начала приватного чата
-                friendElement.addEventListener('click', function() {
-                    // Удаляем класс активного канала
-                    document.querySelectorAll('.channel').forEach(ch => {
-                        ch.classList.remove('active-channel');
+        if (messagesResponse.ok) {
+            const conversations = await messagesResponse.json();
+            // Добавляем пользователей из переписок, если их еще нет в списке
+            conversations.forEach(conversation => {
+                // Проверяем, есть ли уже такой пользователь в списке друзей
+                const exists = allContacts.some(contact =>
+                    contact.user_tag === conversation.contact_user_tag
+                );
+
+                if (!exists) {
+                    // Добавляем пользователя из переписки
+                    allContacts.push({
+                        id: conversation.contact_id,
+                        username: conversation.contact_username,
+                        user_tag: conversation.contact_user_tag,
+                        avatar: conversation.contact_avatar
                     });
-
-                    // Добавляем класс активного канала к выбранному
-                    this.classList.add('active-channel');
-
-                    // Устанавливаем текущего пользователя для приватного чата
-                    currentPrivateChatUser = friend.user_tag;
-
-                    // Обновляем отображение чата
-                    displayPrivateChat();
-                });
-
-                friendsList.appendChild(friendElement);
+                }
             });
         }
+
+        const friendsList = document.getElementById('friends-list'); // Список в "ЛИЧНЫЕ СООБЩЕНИЯ"
+        const friendsSection = document.querySelector('.friends-section'); // Старый список "ДРУЗЬЯ"
+
+        // Очищаем текущий список друзей в "ЛИЧНЫЕ СООБЩЕНИЯ"
+        friendsList.innerHTML = '';
+
+        // Добавляем контакты в список "ЛИЧНЫЕ СООБЩЕНИЯ"
+        allContacts.forEach(contact => {
+            const contactElement = document.createElement('div');
+            contactElement.className = 'friend-item channel';
+            contactElement.innerHTML = `
+                <div class="avatar">${contact.avatar || '👤'}</div>
+                <span class="friend-username">${contact.username}<span class="user-tag">#${contact.user_tag}</span></span>
+            `;
+
+            // Добавляем обработчик клика для начала приватного чата
+            contactElement.addEventListener('click', function() {
+                // Удаляем класс активного канала
+                document.querySelectorAll('.channel').forEach(ch => {
+                    ch.classList.remove('active-channel');
+                });
+
+                // Добавляем класс активного канала к выбранному
+                this.classList.add('active-channel');
+
+                // Устанавливаем текущего пользователя для приватного чата
+                currentPrivateChatUser = contact.user_tag;
+
+                // Обновляем отображение чата
+                displayPrivateChat();
+            });
+
+            friendsList.appendChild(contactElement);
+        });
     } catch (error) {
-        console.error('Ошибка при загрузке друзей:', error);
+        console.error('Ошибка при загрузке контактов:', error);
     }
 }
 
@@ -324,33 +362,8 @@ async function updateFriendsList() {
 
 // Функция для обновления списка друзей при добавлении нового друга
 function addFriendToList(friend) {
-    const friendsList = document.getElementById('friends-list'); // Список в "ЛИЧНЫЕ СООБЩЕНИЯ"
-
-    const friendElement = document.createElement('div');
-    friendElement.className = 'friend-item channel';
-    friendElement.innerHTML = `
-        <div class="avatar">${friend.avatar || '👤'}</div>
-        <span class="friend-username">${friend.username}<span class="user-tag">#${friend.user_tag}</span></span>
-    `;
-
-    // Добавляем обработчик клика для начала приватного чата
-    friendElement.addEventListener('click', function() {
-        // Удаляем класс активного канала
-        document.querySelectorAll('.channel').forEach(ch => {
-            ch.classList.remove('active-channel');
-        });
-
-        // Добавляем класс активного канала к выбранному
-        this.classList.add('active-channel');
-
-        // Устанавливаем текущего пользователя для приватного чата
-        currentPrivateChatUser = friend.user_tag;
-
-        // Обновляем отображение чата
-        displayPrivateChat();
-    });
-
-    friendsList.appendChild(friendElement);
+    // Обновляем весь список контактов, чтобы добавить нового друга
+    updateFriendsList();
 }
 
 // Функция для отображения панели уведомлений о заявках в друзья
@@ -458,7 +471,7 @@ async function acceptFriendRequestFromNotification(requestId) {
             // Обновляем список запросов
             showFriendRequestsNotification();
 
-            // Также обновляем список друзей
+            // Также обновляем список контактов
             updateFriendsList();
         } else {
             const errorData = await response.json();
@@ -488,6 +501,9 @@ async function rejectFriendRequestFromNotification(requestId) {
 
             // Обновляем список запросов
             showFriendRequestsNotification();
+
+            // Обновляем список контактов
+            updateFriendsList();
         } else {
             const errorData = await response.json();
             alert(errorData.message || 'Ошибка при отклонении запроса');

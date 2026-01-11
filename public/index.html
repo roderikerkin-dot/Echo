@@ -393,6 +393,11 @@
                     alert(data.message);
                     // Обновляем список запросов
                     loadIncomingFriendRequests();
+
+                    // Обновляем список контактов
+                    if (typeof updateFriendsList === 'function') {
+                        updateFriendsList();
+                    }
                 } else {
                     alert(data.message || 'Ошибка при принятии запроса');
                 }
@@ -419,6 +424,11 @@
                     alert(data.message);
                     // Обновляем список запросов
                     loadIncomingFriendRequests();
+
+                    // Обновляем список контактов
+                    if (typeof updateFriendsList === 'function') {
+                        updateFriendsList();
+                    }
                 } else {
                     alert(data.message || 'Ошибка при отклонении запроса');
                 }
