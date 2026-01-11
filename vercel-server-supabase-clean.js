@@ -803,6 +803,98 @@ app.get('/api/messages/private/:userTag', authenticateToken, async (req, res) =>
     }
 });
 
+// Маршрут для получения сообщений канала
+app.get('/api/messages/channel/:channel', authenticateToken, async (req, res) => {
+    const { channel } = req.params;
+
+    try {
+        // Для упрощения, в текущей реализации все сообщения находятся в одном месте
+        // В реальном приложении здесь будет логика получения сообщений из конкретного канала
+        const { data: messages, error } = await supabase
+            .from('channel_messages')
+            .select(`
+                *,
+                users!channel_messages_sender_id_fkey(username, avatar)
+            `)
+            .eq('channel', channel)
+            .order('timestamp', { ascending: true })
+            .limit(50);
+
+        if (error) {
+            console.error('Ошибка при получении сообщений канала:', error);
+            return res.status(500).json({ message: 'Ошибка сервера' });
+        }
+
+        // Форматируем сообщения
+        const formattedMessages = messages.map(msg => ({
+            id: msg.id,
+            username: msg.users?.username,
+            avatar: msg.users?.avatar || '👤',
+            timestamp: msg.timestamp,
+            text: msg.text
+        }));
+
+        res.json(formattedMessages);
+    } catch (error) {
+        console.error('Ошибка при получении сообщений канала:', error);
+        res.status(500).json({ message: 'Ошибка сервера' });
+    }
+});
+
+// Маршрут для отправки сообщения в канал
+app.post('/api/messages/send', authenticateToken, async (req, res) => {
+    const userId = req.user.userId;
+    const { channel, text } = req.body;
+
+    // Проверяем, что сообщение не пустое
+    if (!text || text.trim().length === 0) {
+        return res.status(400).json({ message: 'Сообщение не может быть пустым' });
+    }
+
+    if (text.trim().length > 1000) {
+        return res.status(400).json({ message: 'Сообщение слишком длинное (максимум 1000 символов)' });
+    }
+
+    try {
+        // Получаем информацию о пользователе для сохранения с сообщением
+        const { data: user, error: userError } = await supabase
+            .from('users')
+            .select('username, avatar')
+            .eq('id', userId)
+            .single();
+
+        if (userError) {
+            console.error('Ошибка при получении информации о пользователе:', userError);
+            return res.status(500).json({ message: 'Ошибка сервера' });
+        }
+
+        // Сохраняем сообщение в базу данных
+        const { data: newMessage, error: insertError } = await supabase
+            .from('channel_messages')
+            .insert([{
+                sender_id: userId,
+                channel: channel,
+                text: text.trim()
+            }])
+            .select()
+            .single();
+
+        if (insertError) {
+            console.error('Ошибка при сохранении сообщения:', insertError);
+            return res.status(500).json({ message: 'Ошибка сервера' });
+        }
+
+        res.json({
+            message: 'Сообщение успешно отправлено',
+            messageId: newMessage.id,
+            timestamp: newMessage.timestamp
+        });
+    } catch (error) {
+        console.error('Ошибка при отправке сообщения:', error);
+        res.status(500).json({ message: 'Ошибка сервера' });
+    }
+});
+
 // Маршрут для получения списка последних личных сообщений с друзьями
 app.get('/api/messages/private', authenticateToken, async (req, res) => {
     const userId = req.user.userId;
