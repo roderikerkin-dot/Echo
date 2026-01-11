@@ -188,3 +188,86 @@ document.addEventListener('DOMContentLoaded', function() {
     // Обновляем список друзей
     updateFriendsList();
 });
+
+// Функция для обновления списка друзей в боковой панели
+async function updateFriendsList() {
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch('/api/friends', {
+            method: 'GET',
+            headers: {
+                'Authorization': 'Bearer ' + token
+            }
+        });
+
+        if (response.ok) {
+            const friends = await response.json();
+            const friendsList = document.getElementById('friends-list');
+
+            // Очищаем текущий список друзей
+            friendsList.innerHTML = '';
+
+            // Добавляем друзей в список
+            friends.forEach(friend => {
+                const friendElement = document.createElement('div');
+                friendElement.className = 'friend-item channel';
+                friendElement.innerHTML = `
+                    <div class="avatar">${friend.avatar || '👤'}</div>
+                    <span class="friend-username">${friend.username}<span class="user-tag">#${friend.user_tag}</span></span>
+                `;
+
+                // Добавляем обработчик клика для начала приватного чата
+                friendElement.addEventListener('click', function() {
+                    // Удаляем класс активного канала
+                    document.querySelectorAll('.channel').forEach(ch => {
+                        ch.classList.remove('active-channel');
+                    });
+
+                    // Добавляем класс активного канала к выбранному
+                    this.classList.add('active-channel');
+
+                    // Устанавливаем текущего пользователя для приватного чата
+                    currentPrivateChatUser = friend.user_tag;
+
+                    // Обновляем отображение чата
+                    displayPrivateChat();
+                });
+
+                friendsList.appendChild(friendElement);
+            });
+        }
+    } catch (error) {
+        console.error('Ошибка при загрузке друзей:', error);
+    }
+}
+
+// Функция для обновления списка друзей при добавлении нового друга
+function addFriendToList(friend) {
+    const friendsList = document.getElementById('friends-list');
+
+    const friendElement = document.createElement('div');
+    friendElement.className = 'friend-item channel';
+    friendElement.innerHTML = `
+        <div class="avatar">${friend.avatar || '👤'}</div>
+        <span class="friend-username">${friend.username}<span class="user-tag">#${friend.user_tag}</span></span>
+    `;
+
+    // Добавляем обработчик клика для начала приватного чата
+    friendElement.addEventListener('click', function() {
+        // Удаляем класс активного канала
+        document.querySelectorAll('.channel').forEach(ch => {
+            ch.classList.remove('active-channel');
+        });
+
+        // Добавляем класс активного канала к выбранному
+        this.classList.add('active-channel');
+
+        // Устанавливаем текущего пользователя для приватного чата
+        currentPrivateChatUser = friend.user_tag;
+
+        // Обновляем отображение чата
+        displayPrivateChat();
+    });
+
+    friendsList.appendChild(friendElement);
+}
