@@ -413,6 +413,6 @@ document.addEventListener('DOMContentLoaded', function() {
     // Показываем уведомления о заявках в друзья
     setTimeout(showFriendRequestsNotification, 2000); // Показываем через 2 секунды после загрузки
 
-    // Обновляем уведомления каждые 30 секунд
-    setInterval(showFriendRequestsNotification, 30000);
+    // Обновляем уведомления каждые 10 секунд
+    setInterval(showFriendRequestsNotification, 10000);
 });

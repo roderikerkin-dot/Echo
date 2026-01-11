@@ -308,6 +308,13 @@
                     // Очищаем поле ввода
                     document.getElementById('friendTag').value = '';
 
+                    // Обновляем уведомления о заявках в друзья
+                    setTimeout(() => {
+                        if (typeof showFriendRequestsNotification === 'function') {
+                            showFriendRequestsNotification();
+                        }
+                    }, 1000);
+
                     // Закрываем модальное окно через 2 секунды
                     setTimeout(closeAddFriendModal, 2000);
                 } else {
