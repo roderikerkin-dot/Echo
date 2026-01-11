@@ -133,16 +133,16 @@
 </button>
                 </div>
             </div>
-            <!-- Панель уведомлений о заявках в друзья -->
-            <div id="friendRequestsNotification" class="friend-requests-notification">
-                <div class="notification-header">
-                    <h3>Заявки в друзья</h3>
-                    <button class="close-notification" onclick="closeFriendRequestsNotification()">&times;</button>
-                </div>
-                <div class="notification-body">
-                    <div id="incomingRequestsListSmall">
-                        <!-- Список запросов будет загружен динамически -->
-                    </div>
+        </div>
+
+        <!-- Панель уведомлений о заявках в друзья -->
+        <div id="friendRequestsNotification" class="friend-requests-notification">
+            <div class="notification-header">
+                <h3>Заявки в друзья</h3>
+            </div>
+            <div class="notification-body">
+                <div id="incomingRequestsListSmall">
+                    <!-- Список запросов будет загружен динамически -->
                 </div>
             </div>
         </div>
@@ -557,7 +557,7 @@
 
         .notification-header {
             display: flex;
-            justify-content: space-between;
+            justify-content: flex-start;
             align-items: center;
             padding: 12px 16px;
             border-bottom: 1px solid #202225;
@@ -567,18 +567,6 @@
             margin: 0;
             color: white;
             font-size: 16px;
-        }
-
-        .close-notification {
-            background: none;
-            border: none;
-            color: #b9bbbe;
-            font-size: 20px;
-            cursor: pointer;
-        }
-
-        .close-notification:hover {
-            color: white;
         }
 
         .notification-body {

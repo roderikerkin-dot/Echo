@@ -346,16 +346,10 @@ async function showFriendRequestsNotification() {
     }
 }
 
-// Функция для обновления панели уведомлений о заявках в друзья
+// Функция для обновления панели уведомлений о заявках в друзья (не используется, так как убрали крестик закрытия)
 function closeFriendRequestsNotification() {
-    // Обновляем содержимое уведомлений, не скрывая их
-    const requestsList = document.getElementById('incomingRequestsListSmall');
-
-    // Очищаем список запросов
-    requestsList.innerHTML = '<div class="no-requests-small">Нет входящих запросов</div>';
-
-    // Обновляем уведомления, чтобы отразить изменения
-    showFriendRequestsNotification();
+    // Эта функция больше не используется, так как уведомления теперь всегда видны внизу панели
+    // и не требуют ручного закрытия
 }
 
 // Функция для принятия запроса в друзья из уведомления
