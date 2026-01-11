@@ -57,9 +57,10 @@ if (githubClientId && githubClientSecret) {
   passport.use(new GitHubStrategy({
       clientID: githubClientId,
       clientSecret: githubClientSecret,
-      callbackURL: "/auth/github/callback"
+      callbackURL: "/auth/github/callback",
+      passReqToCallback: true // Передаем весь запрос в коллбэк
     },
-    async function(accessToken, refreshToken, profile, done) {
+    async function(req, accessToken, refreshToken, profile, done) {
     try {
       // Проверяем, существует ли пользователь с таким github_id
       const { data: existingUser, error } = await supabase
@@ -113,29 +114,8 @@ if (githubClientId && githubClientSecret) {
   console.log('GitHub OAuth не настроен: отсутствуют GITHUB_CLIENT_ID или GITHUB_CLIENT_SECRET');
 }
 
-// Сериализация пользователя для сессии
-passport.serializeUser(function(user, done) {
-  done(null, user.id);
-});
-
-// Десериализация пользователя из сессии
-passport.deserializeUser(async function(id, done) {
-  try {
-    const { data: user, error } = await supabase
-      .from('users')
-      .select('id, email, username, user_tag, about_me, avatar')
-      .eq('id', id)
-      .single();
-
-    if (error) {
-      return done(error);
-    }
-
-    done(null, user);
-  } catch (error) {
-    done(error);
-  }
-});
+// Убираем сериализацию и десериализацию пользователя, так как не используем сессии
+// Вместо этого будем использовать JWT токены для аутентификации
 
 // Секретный ключ для JWT
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -150,7 +130,8 @@ app.use(cors());
 app.use(bodyParser.json());
 app.use(express.static('public'));
 app.use(passport.initialize());
-app.use(passport.session()); // Для работы с сессиями
+// Убираем passport.session() так как в serverless среде сессии не работают
+// Вместо этого будем использовать JWT токены для аутентификации
 
 // Функция для генерации уникального шестизначного тега пользователя
 function generateUniqueUserTag() {
@@ -374,8 +355,8 @@ app.get('/auth/github',
 
 // Маршрут для обратного вызова после аутентификации через GitHub
 app.get('/auth/github/callback',
-  passport.authenticate('github', { failureRedirect: '/login' }),
-  (req, res) => {
+  passport.authenticate('github', { session: false }), // Отключаем сессии
+  async (req, res) => {
     // Успешная аутентификация, генерируем JWT токен
     const user = req.user;
 
