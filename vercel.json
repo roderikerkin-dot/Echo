@@ -1,15 +1,13 @@
 {
-  "version": 2,
-  "builds": [
-    {
-      "src": "vercel-server-supabase-clean.js",
-      "use": "@vercel/node"
-    }
-  ],
-  "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "vercel-server-supabase-clean.js"
-    }
+  "cleanUrls": true,
+  "trailingSlash": false,
+  "rewrites": [
+    { "source": "/login", "destination": "/login.html" },
+    { "source": "/register", "destination": "/register.html" },
+    { "source": "/settings", "destination": "/settings.html" },
+    { "source": "/profile-settings", "destination": "/profile-settings.html" },
+    { "source": "/voice-chat", "destination": "/voice-chat.html" },
+    { "source": "/password-test", "destination": "/password_test.html" },
+    { "source": "/storage-check", "destination": "/storage_check.html" }
   ]
 }

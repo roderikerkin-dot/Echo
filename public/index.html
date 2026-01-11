@@ -128,6 +128,40 @@
         </div>
     </div>
 
+    <!-- Модальное окно для добавления друга -->
+    <div id="addFriendModal" class="modal-overlay" style="display: none;">
+        <div class="modal">
+            <div class="modal-header">
+                <h2>Добавить друга</h2>
+                <button class="close-modal" onclick="closeAddFriendModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="friendTag">Введите тег пользователя</label>
+                    <input type="text" id="friendTag" name="friendTag" placeholder="#000000" maxlength="6">
+                </div>
+                <button class="send-request-btn" onclick="sendFriendRequest()">Отправить запрос</button>
+                <div class="error-message" id="friendErrorMessage"></div>
+                <div class="success-message" id="friendSuccessMessage"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Панель запросов в друзья -->
+    <div id="friendRequestsPanel" class="modal-overlay" style="display: none;">
+        <div class="modal">
+            <div class="modal-header">
+                <h2>Запросы в друзья</h2>
+                <button class="close-modal" onclick="closeFriendRequestsPanel()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="incomingRequestsList">
+                    <!-- Список запросов будет загружен динамически -->
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
         // Проверяем авторизацию при загрузке страницы
         document.addEventListener('DOMContentLoaded', function() {
@@ -192,293 +226,434 @@
                 document.getElementById('appSection').style.display = 'none';
             }
         }
-    </script>
-    <script src="script.js"></script>
-<!-- Модальное окно для добавления друга -->
-<div id="addFriendModal" class="modal-overlay" style="display: none;">
-    <div class="modal">
-        <div class="modal-header">
-            <h2>Добавить друга</h2>
-            <button class="close-modal" onclick="closeAddFriendModal()">&times;</button>
-        </div>
-        <div class="modal-body">
-            <div class="form-group">
-                <label for="friendTag">Введите тег пользователя</label>
-                <input type="text" id="friendTag" name="friendTag" placeholder="#000000" maxlength="6">
-            </div>
-            <button class="send-request-btn" onclick="sendFriendRequest()">Отправить запрос</button>
-            <div class="error-message" id="friendErrorMessage"></div>
-            <div class="success-message" id="friendSuccessMessage"></div>
-        </div>
-    </div>
-</div>
 
-<script>
-    // Функция для отображения модального окна добавления друга
-    function showAddFriendModal() {
-        document.getElementById('addFriendModal').style.display = 'flex';
-        document.getElementById('friendTag').focus();
-    }
-
-    // Функция для закрытия модального окна добавления друга
-    function closeAddFriendModal() {
-        document.getElementById('addFriendModal').style.display = 'none';
-        // Очищаем поля и сообщения
-        document.getElementById('friendTag').value = '';
-        document.getElementById('friendErrorMessage').style.display = 'none';
-        document.getElementById('friendSuccessMessage').style.display = 'none';
-    }
-
-    // Функция для отправки запроса в друзья
-    function sendFriendRequest() {
-        const friendTag = document.getElementById('friendTag').value.trim();
-        const token = localStorage.getItem('token');
-        const errorMessage = document.getElementById('friendErrorMessage');
-        const successMessage = document.getElementById('friendSuccessMessage');
-
-        // Сбрасываем сообщения
-        errorMessage.style.display = 'none';
-        successMessage.style.display = 'none';
-
-        // Проверяем, что тег введен и состоит из 6 цифр
-        if (!friendTag || friendTag.length !== 6 || !/^\d+$/.test(friendTag)) {
-            errorMessage.textContent = 'Пожалуйста, введите корректный 6-значный тег пользователя';
-            errorMessage.style.display = 'block';
-            return;
+        // Функция для отображения модального окна добавления друга
+        function showAddFriendModal() {
+            document.getElementById('addFriendModal').style.display = 'flex';
+            document.getElementById('friendTag').focus();
         }
 
-        // Отправляем запрос на сервер
-        fetch('/api/friends/request', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': 'Bearer ' + token
-            },
-            body: JSON.stringify({ userTag: friendTag })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.message) {
-                successMessage.textContent = data.message;
-                successMessage.style.display = 'block';
+        // Функция для закрытия модального окна добавления друга
+        function closeAddFriendModal() {
+            document.getElementById('addFriendModal').style.display = 'none';
+            // Очищаем поля и сообщения
+            document.getElementById('friendTag').value = '';
+            document.getElementById('friendErrorMessage').style.display = 'none';
+            document.getElementById('friendSuccessMessage').style.display = 'none';
+        }
 
-                // Очищаем поле ввода
-                document.getElementById('friendTag').value = '';
+        // Функция для отправки запроса в друзья
+        function sendFriendRequest() {
+            const friendTag = document.getElementById('friendTag').value.trim();
+            const token = localStorage.getItem('token');
+            const errorMessage = document.getElementById('friendErrorMessage');
+            const successMessage = document.getElementById('friendSuccessMessage');
 
-                // Закрываем модальное окно через 2 секунды
-                setTimeout(closeAddFriendModal, 2000);
-            } else {
-                errorMessage.textContent = data.message || 'Ошибка при отправке запроса';
+            // Сбрасываем сообщения
+            errorMessage.style.display = 'none';
+            successMessage.style.display = 'none';
+
+            // Проверяем, что тег введен и состоит из 6 цифр
+            if (!friendTag || friendTag.length !== 6 || !/^\d+$/.test(friendTag)) {
+                errorMessage.textContent = 'Пожалуйста, введите корректный 6-значный тег пользователя';
                 errorMessage.style.display = 'block';
-            }
-        })
-        .catch(error => {
-            console.error('Ошибка при отправке запроса в друзья:', error);
-            errorMessage.textContent = 'Ошибка соединения с сервером';
-            errorMessage.style.display = 'block';
-        });
-    }
-
-    // Закрытие модального окна при клике вне его области
-    document.getElementById('addFriendModal').addEventListener('click', function(event) {
-        if (event.target === this) {
-            closeAddFriendModal();
-        }
-    });
-
-    // Закрытие модального окна при нажатии клавиши Escape
-    document.addEventListener('keydown', function(event) {
-        if (event.key === 'Escape') {
-            const modal = document.getElementById('addFriendModal');
-            if (modal.style.display === 'flex') {
-                closeAddFriendModal();
-            }
-        }
-    });
-
-    // Функция для отображения панели запросов в друзья
-    function showFriendRequestsPanel() {
-        const panel = document.getElementById('friendRequestsPanel');
-        panel.style.display = 'flex';
-
-        // Загружаем входящие запросы в друзья
-        loadIncomingFriendRequests();
-    }
-
-    // Функция для закрытия панели запросов в друзья
-    function closeFriendRequestsPanel() {
-        document.getElementById('friendRequestsPanel').style.display = 'none';
-    }
-
-    // Функция для загрузки входящих запросов в друзья
-    function loadIncomingFriendRequests() {
-        const token = localStorage.getItem('token');
-        const requestsList = document.getElementById('incomingRequestsList');
-
-        fetch('/api/friends/requests/incoming', {
-            method: 'GET',
-            headers: {
-                'Authorization': 'Bearer ' + token
-            }
-        })
-        .then(response => response.json())
-        .then(requests => {
-            // Очищаем список
-            requestsList.innerHTML = '';
-
-            if (requests.length === 0) {
-                requestsList.innerHTML = '<div class="no-requests">Нет входящих запросов</div>';
                 return;
             }
 
-            // Добавляем каждый запрос в список
-            requests.forEach(request => {
-                const requestItem = document.createElement('div');
-                requestItem.className = 'request-item';
+            // Отправляем запрос на сервер
+            fetch('/api/friends/request', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + token
+                },
+                body: JSON.stringify({ userTag: friendTag })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.message) {
+                    successMessage.textContent = data.message;
+                    successMessage.style.display = 'block';
 
-                requestItem.innerHTML = `
-                    <div class="avatar">${request.avatar || '👤'}</div>
-                    <div class="user-info">
-                        <div class="username">${request.username}</div>
-                        <div class="user-tag">#${request.user_tag}</div>
-                    </div>
-                    <div class="request-actions">
-                        <button class="request-action-btn accept" onclick="acceptFriendRequest(${request.id})">✓</button>
-                        <button class="request-action-btn reject" onclick="rejectFriendRequest(${request.id})">×</button>
-                    </div>
-                `;
+                    // Очищаем поле ввода
+                    document.getElementById('friendTag').value = '';
 
-                requestsList.appendChild(requestItem);
-            });
-        })
-        .catch(error => {
-            console.error('Ошибка при загрузке запросов в друзья:', error);
-            requestsList.innerHTML = '<div class="error-loading">Ошибка загрузки запросов</div>';
-        });
-    }
-
-    // Функция для принятия запроса в друзья
-    function acceptFriendRequest(requestId) {
-        const token = localStorage.getItem('token');
-
-        fetch(`/api/friends/requests/${requestId}/accept`, {
-            method: 'POST',
-            headers: {
-                'Authorization': 'Bearer ' + token
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.message) {
-                alert(data.message);
-                // Обновляем список запросов
-                loadIncomingFriendRequests();
-            } else {
-                alert(data.message || 'Ошибка при принятии запроса');
-            }
-        })
-        .catch(error => {
-            console.error('Ошибка при принятии запроса в друзья:', error);
-            alert('Ошибка соединения с сервером');
-        });
-    }
-
-    // Функция для отклонения запроса в друзья
-    function rejectFriendRequest(requestId) {
-        const token = localStorage.getItem('token');
-
-        fetch(`/api/friends/requests/${requestId}/reject`, {
-            method: 'POST',
-            headers: {
-                'Authorization': 'Bearer ' + token
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.message) {
-                alert(data.message);
-                // Обновляем список запросов
-                loadIncomingFriendRequests();
-            } else {
-                alert(data.message || 'Ошибка при отклонении запроса');
-            }
-        })
-        .catch(error => {
-            console.error('Ошибка при отклонении запроса в друзья:', error);
-            alert('Ошибка соединения с сервером');
-        });
-    }
-
-    // Добавим обработчик клика на иконку пользователя, чтобы показывать панель запросов
-    document.addEventListener('DOMContentLoaded', function() {
-        // Добавим обработчик для показа панели запросов в друзья при клике на аватар пользователя
-        const userInfoPanel = document.querySelector('.user-info-panel');
-        if (userInfoPanel) {
-            userInfoPanel.addEventListener('click', function(event) {
-                // Проверяем, что клик был не по кнопкам выхода или настроек
-                if (!event.target.closest('.user-actions button')) {
-                    showFriendRequestsPanel();
+                    // Закрываем модальное окно через 2 секунды
+                    setTimeout(closeAddFriendModal, 2000);
+                } else {
+                    errorMessage.textContent = data.message || 'Ошибка при отправке запроса';
+                    errorMessage.style.display = 'block';
                 }
+            })
+            .catch(error => {
+                console.error('Ошибка при отправке запроса в друзья:', error);
+                errorMessage.textContent = 'Ошибка соединения с сервером';
+                errorMessage.style.display = 'block';
             });
         }
-    });
-</script>
-<style>
-    .welcome-section {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        height: 100vh;
-        background-color: #36393F;
-        color: white;
-    }
 
-    .welcome-content {
-        text-align: center;
-        max-width: 600px;
-        padding: 20px;
-    }
+        // Закрытие модального окна при клике вне его области
+        document.getElementById('addFriendModal').addEventListener('click', function(event) {
+            if (event.target === this) {
+                closeAddFriendModal();
+            }
+        });
 
-    .welcome-content h1 {
-        font-size: 2.5rem;
-        margin-bottom: 1rem;
-    }
+        // Закрытие модального окна при нажатии клавиши Escape
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                const modal = document.getElementById('addFriendModal');
+                if (modal.style.display === 'flex') {
+                    closeAddFriendModal();
+                }
+            }
+        });
 
-    .welcome-content p {
-        font-size: 1.2rem;
-        margin-bottom: 2rem;
-        color: #B5BAC1;
-    }
+        // Функция для отображения панели запросов в друзья
+        function showFriendRequestsPanel() {
+            const panel = document.getElementById('friendRequestsPanel');
+            panel.style.display = 'flex';
 
-    .welcome-buttons {
-        display: flex;
-        gap: 1rem;
-        justify-content: center;
-    }
+            // Загружаем входящие запросы в друзья
+            loadIncomingFriendRequests();
+        }
 
-    .btn {
-        padding: 12px 24px;
-        border-radius: 4px;
-        font-size: 1rem;
-        cursor: pointer;
-        transition: opacity 0.2s;
-    }
+        // Функция для закрытия панели запросов в друзья
+        function closeFriendRequestsPanel() {
+            document.getElementById('friendRequestsPanel').style.display = 'none';
+        }
 
-    .btn:hover {
-        opacity: 0.9;
-    }
+        // Функция для загрузки входящих запросов в друзья
+        function loadIncomingFriendRequests() {
+            const token = localStorage.getItem('token');
+            const requestsList = document.getElementById('incomingRequestsList');
 
-    .btn-primary {
-        background-color: #5865F2;
-        color: white;
-        border: none;
-    }
+            fetch('/api/friends/requests/incoming', {
+                method: 'GET',
+                headers: {
+                    'Authorization': 'Bearer ' + token
+                }
+            })
+            .then(response => response.json())
+            .then(requests => {
+                // Очищаем список
+                requestsList.innerHTML = '';
 
-    .btn-secondary {
-        background-color: transparent;
-        color: white;
-        border: 1px solid #B5BAC1;
-    }
-</style>
+                if (requests.length === 0) {
+                    requestsList.innerHTML = '<div class="no-requests">Нет входящих запросов</div>';
+                    return;
+                }
+
+                // Добавляем каждый запрос в список
+                requests.forEach(request => {
+                    const requestItem = document.createElement('div');
+                    requestItem.className = 'request-item';
+
+                    requestItem.innerHTML = `
+                        <div class="avatar">${request.avatar || '👤'}</div>
+                        <div class="user-info">
+                            <div class="username">${request.username}</div>
+                            <div class="user-tag">#${request.user_tag}</div>
+                        </div>
+                        <div class="request-actions">
+                            <button class="request-action-btn accept" onclick="acceptFriendRequest(${request.id})">✓</button>
+                            <button class="request-action-btn reject" onclick="rejectFriendRequest(${request.id})">×</button>
+                        </div>
+                    `;
+
+                    requestsList.appendChild(requestItem);
+                });
+            })
+            .catch(error => {
+                console.error('Ошибка при загрузке запросов в друзья:', error);
+                requestsList.innerHTML = '<div class="error-loading">Ошибка загрузки запросов</div>';
+            });
+        }
+
+        // Функция для принятия запроса в друзья
+        function acceptFriendRequest(requestId) {
+            const token = localStorage.getItem('token');
+
+            fetch(`/api/friends/requests/${requestId}/accept`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': 'Bearer ' + token
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.message) {
+                    alert(data.message);
+                    // Обновляем список запросов
+                    loadIncomingFriendRequests();
+                } else {
+                    alert(data.message || 'Ошибка при принятии запроса');
+                }
+            })
+            .catch(error => {
+                console.error('Ошибка при принятии запроса в друзья:', error);
+                alert('Ошибка соединения с сервером');
+            });
+        }
+
+        // Функция для отклонения запроса в друзья
+        function rejectFriendRequest(requestId) {
+            const token = localStorage.getItem('token');
+
+            fetch(`/api/friends/requests/${requestId}/reject`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': 'Bearer ' + token
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.message) {
+                    alert(data.message);
+                    // Обновляем список запросов
+                    loadIncomingFriendRequests();
+                } else {
+                    alert(data.message || 'Ошибка при отклонении запроса');
+                }
+            })
+            .catch(error => {
+                console.error('Ошибка при отклонении запроса в друзья:', error);
+                alert('Ошибка соединения с сервером');
+            });
+        }
+
+        // Добавим обработчик клика на иконку пользователя, чтобы показывать панель запросов
+        document.addEventListener('DOMContentLoaded', function() {
+            // Добавим обработчик для показа панели запросов в друзья при клике на аватар пользователя
+            const userInfoPanel = document.querySelector('.user-info-panel');
+            if (userInfoPanel) {
+                userInfoPanel.addEventListener('click', function(event) {
+                    // Проверяем, что клик был не по кнопкам выхода или настроек
+                    if (!event.target.closest('.user-actions button')) {
+                        showFriendRequestsPanel();
+                    }
+                });
+            }
+        });
+    </script>
+    <script src="script.js"></script>
+    <style>
+        .welcome-section {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #36393F;
+            color: white;
+        }
+
+        .welcome-content {
+            text-align: center;
+            max-width: 600px;
+            padding: 20px;
+        }
+
+        .welcome-content h1 {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .welcome-content p {
+            font-size: 1.2rem;
+            margin-bottom: 2rem;
+            color: #B5BAC1;
+        }
+
+        .welcome-buttons {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border-radius: 4px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        .btn:hover {
+            opacity: 0.9;
+        }
+
+        .btn-primary {
+            background-color: #5865F2;
+            color: white;
+            border: none;
+        }
+
+        .btn-secondary {
+            background-color: transparent;
+            color: white;
+            border: 1px solid #B5BAC1;
+        }
+
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal {
+            background-color: #36393F;
+            border-radius: 8px;
+            width: 400px;
+            max-width: 90%;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px;
+            border-bottom: 1px solid #202225;
+        }
+
+        .modal-header h2 {
+            margin: 0;
+            color: white;
+        }
+
+        .close-modal {
+            background: none;
+            border: none;
+            color: #B5BAC1;
+            font-size: 24px;
+            cursor: pointer;
+        }
+
+        .modal-body {
+            padding: 16px;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-group label {
+            display: block;
+            color: #B5BAC1;
+            margin-bottom: 8px;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 10px;
+            background-color: #202225;
+            border: 1px solid #40444B;
+            border-radius: 4px;
+            color: white;
+        }
+
+        .send-request-btn {
+            width: 100%;
+            padding: 10px;
+            background-color: #5865F2;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .send-request-btn:hover {
+            background-color: #4752C4;
+        }
+
+        .error-message {
+            color: #F23F43;
+            text-align: center;
+            margin-top: 10px;
+            display: none;
+        }
+
+        .success-message {
+            color: #3BA55D;
+            text-align: center;
+            margin-top: 10px;
+            display: none;
+        }
+
+        .request-item {
+            display: flex;
+            align-items: center;
+            padding: 12px;
+            border-bottom: 1px solid #202225;
+        }
+
+        .request-item:last-child {
+            border-bottom: none;
+        }
+
+        .avatar {
+            font-size: 24px;
+            margin-right: 12px;
+        }
+
+        .user-info {
+            flex: 1;
+        }
+
+        .username {
+            color: white;
+            font-weight: bold;
+        }
+
+        .user-tag {
+            color: #B5BAC1;
+            font-size: 14px;
+        }
+
+        .request-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .request-action-btn {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .accept {
+            background-color: #3BA55D;
+            color: white;
+        }
+
+        .reject {
+            background-color: #F23F43;
+            color: white;
+        }
+
+        .no-requests {
+            text-align: center;
+            color: #B5BAC1;
+            padding: 20px;
+        }
+
+        .error-loading {
+            text-align: center;
+            color: #F23F43;
+            padding: 20px;
+        }
+    </style>
 </body>
 </html>

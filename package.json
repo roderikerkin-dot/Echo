@@ -2,10 +2,10 @@
   "name": "discord-clone-backend",
   "version": "1.0.0",
   "description": "Backend for Discord Clone",
-  "main": "server.js",
+  "main": "vercel-server-supabase-clean.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "nodemon server.js"
+    "start": "node vercel-server-supabase-clean.js",
+    "dev": "nodemon vercel-server-supabase-clean.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
