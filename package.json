@@ -16,7 +16,7 @@
     "jsonwebtoken": "^9.0.0",
     "passport": "^0.6.0",
     "passport-github2": "^0.1.12",
-    "sqlite3": "^5.1.6"
+    "@supabase/supabase-js": "^2.44.4"
   },
   "devDependencies": {
     "nodemon": "^2.0.22"
