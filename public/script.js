@@ -49,7 +49,14 @@ async function loadPrivateMessages() {
             }
         } else {
             // Если запрос не удался, показываем сообщение об ошибке
-            messagesContainer.innerHTML = '<div class="error-loading">Ошибка загрузки сообщений</div>';
+            const errorData = await response.json().catch(() => ({}));
+            const errorMessage = errorData.message || 'Ошибка загрузки сообщений';
+
+            if (errorMessage.includes('друзья')) {
+                messagesContainer.innerHTML = '<div class="error-loading">Вы можете просматривать сообщения только с друзьями</div>';
+            } else {
+                messagesContainer.innerHTML = '<div class="error-loading">Ошибка загрузки сообщений</div>';
+            }
         }
     } catch (error) {
         console.error('Ошибка при загрузке сообщений:', error);
@@ -104,7 +111,12 @@ async function sendPrivateMessage(text) {
             // Показываем ошибку
             const errorData = await response.json();
             console.error('Ошибка при отправке сообщения:', errorData.message);
-            alert('Ошибка при отправке сообщения: ' + errorData.message);
+
+            if (errorData.message && errorData.message.includes('друзья')) {
+                alert('Вы можете отправлять сообщения только друзьям');
+            } else {
+                alert('Ошибка при отправке сообщения: ' + errorData.message);
+            }
         }
     } catch (error) {
         console.error('Ошибка при отправке сообщения:', error);

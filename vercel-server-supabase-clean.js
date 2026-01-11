@@ -953,5 +953,34 @@ app.get('/api/messages/private', authenticateToken, async (req, res) => {
     }
 });
 
+// Маршрут для получения информации о пользователе по тегу
+app.get('/api/users/by-tag/:tag', authenticateToken, async (req, res) => {
+    const { tag } = req.params;
+
+    try {
+        // Находим пользователя по тегу
+        const { data: user, error } = await supabase
+            .from('users')
+            .select('id, username, user_tag, avatar')
+            .eq('user_tag', tag)
+            .single();
+
+        if (error || !user) {
+            return res.status(404).json({ message: 'Пользователь с таким тегом не найден' });
+        }
+
+        // Возвращаем информацию о пользователе
+        res.json({
+            id: user.id,
+            username: user.username,
+            user_tag: user.user_tag,
+            avatar: user.avatar
+        });
+    } catch (error) {
+        console.error('Ошибка при получении информации о пользователе:', error);
+        res.status(500).json({ message: 'Ошибка сервера' });
+    }
+});
+
 // Экспортируем приложение для использования с Vercel
 module.exports = app;
