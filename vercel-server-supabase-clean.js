@@ -18,10 +18,31 @@ const supabaseKey = process.env.SUPABASE_KEY;
 
 if (!supabaseUrl || !supabaseKey) {
   console.error('Ошибка: Не заданы переменные окружения SUPABASE_URL или SUPABASE_KEY');
-  process.exit(1);
+  // Вместо process.exit(1) в serverless среде лучше выбросить ошибку
+  throw new Error('Не заданы переменные окружения SUPABASE_URL или SUPABASE_KEY');
 }
 
 const supabase = createClient(supabaseUrl, supabaseKey);
+
+// Проверка подключения к Supabase
+async function testSupabaseConnection() {
+  try {
+    const { data, error } = await supabase.from('users').select('id').limit(1);
+    if (error) {
+      console.error('Ошибка подключения к Supabase:', error);
+      throw new Error(`Ошибка подключения к Supabase: ${error.message}`);
+    }
+    console.log('Подключение к Supabase успешно');
+  } catch (err) {
+    console.error('Ошибка при проверке подключения к Supabase:', err);
+    throw err;
+  }
+}
+
+// Выполняем проверку подключения при инициализации
+testSupabaseConnection().catch(err => {
+  console.error('Ошибка при инициализации подключения к Supabase:', err);
+});
 
 // Middleware
 app.use(cors());
@@ -121,7 +142,7 @@ const JWT_SECRET = process.env.JWT_SECRET;
 
 if (!JWT_SECRET) {
   console.error('Ошибка: Не задана переменная окружения JWT_SECRET');
-  process.exit(1);
+  throw new Error('Не задана переменная окружения JWT_SECRET');
 }
 
 // Middleware
