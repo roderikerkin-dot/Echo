@@ -3,13 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EchoLink</title>
+    <title>EchoLink - Chat Application</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <div id="authCheck">Проверка авторизации...</div>
+    <div id="welcomeSection" class="welcome-section">
+        <div class="welcome-content">
+            <h1>Добро пожаловать в EchoLink</h1>
+            <p>Присоединяйтесь к нашему чат-приложению для общения с друзьями и коллегами</p>
+            <div class="welcome-buttons">
+                <button class="btn btn-primary" onclick="window.location.href='login.html'">Войти</button>
+                <button class="btn btn-secondary" onclick="window.location.href='register.html'">Зарегистрироваться</button>
+            </div>
+        </div>
+    </div>
 
-    <div class="app" style="display: none;">
+    <div id="appSection" class="app" style="display: none;">
         <!-- Server sidebar -->
         <div class="server-sidebar">
             <div class="server-icon active">
@@ -123,8 +132,8 @@
         // Проверяем авторизацию при загрузке страницы
         document.addEventListener('DOMContentLoaded', function() {
             const token = localStorage.getItem('token');
-            const authCheckDiv = document.getElementById('authCheck');
-            const appDiv = document.querySelector('.app');
+            const welcomeSection = document.getElementById('welcomeSection');
+            const appSection = document.getElementById('appSection');
 
             if (token) {
                 // Проверяем токен на сервере
@@ -138,8 +147,8 @@
                 .then(data => {
                     if (data.username) {
                         // Пользователь авторизован, показываем приложение
-                        authCheckDiv.style.display = 'none';
-                        appDiv.style.display = 'flex';
+                        welcomeSection.style.display = 'none';
+                        appSection.style.display = 'flex';
 
                         // Обновляем имя пользователя, аватар и уникальный номер
                         document.getElementById('currentUsername').textContent = data.username;
@@ -150,22 +159,25 @@
                             document.getElementById('currentUserTag').textContent = '#' + data.user_tag;
                         }
                     } else {
-                        // Токен недействителен, перенаправляем на страницу входа
+                        // Токен недействителен, очищаем токен и показываем приветственную страницу
                         localStorage.removeItem('token');
                         localStorage.removeItem('username');
-                        window.location.href = 'login.html';
+                        welcomeSection.style.display = 'flex';
+                        appSection.style.display = 'none';
                     }
                 })
                 .catch(error => {
                     console.error('Ошибка при проверке токена:', error);
-                    // При ошибке перенаправляем на страницу входа
+                    // При ошибке очищаем токен и показываем приветственную страницу
                     localStorage.removeItem('token');
                     localStorage.removeItem('username');
-                    window.location.href = 'login.html';
+                    welcomeSection.style.display = 'flex';
+                    appSection.style.display = 'none';
                 });
             } else {
-                // Пользователь не авторизован, перенаправляем на страницу входа
-                window.location.href = 'login.html';
+                // Пользователь не авторизован, показываем приветственную страницу
+                welcomeSection.style.display = 'flex';
+                appSection.style.display = 'none';
             }
         });
 
@@ -175,7 +187,9 @@
             if (confirmed) {
                 localStorage.removeItem('token');
                 localStorage.removeItem('username');
-                window.location.href = 'login.html';
+                // После выхода показываем приветственную страницу
+                document.getElementById('welcomeSection').style.display = 'flex';
+                document.getElementById('appSection').style.display = 'none';
             }
         }
     </script>
@@ -281,65 +295,6 @@
             }
         }
     });
-
-    // Проверяем авторизацию при загрузке страницы
-    document.addEventListener('DOMContentLoaded', function() {
-        const token = localStorage.getItem('token');
-        const authCheckDiv = document.getElementById('authCheck');
-        const appDiv = document.querySelector('.app');
-
-        if (token) {
-            // Проверяем токен на сервере
-            fetch('/api/profile', {
-                method: 'GET',
-                headers: {
-                    'Authorization': 'Bearer ' + token
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.username) {
-                    // Пользователь авторизован, показываем приложение
-                    authCheckDiv.style.display = 'none';
-                    appDiv.style.display = 'flex';
-
-                    // Обновляем имя пользователя, аватар и уникальный номер
-                    document.getElementById('currentUsername').textContent = data.username;
-                    if (data.avatar) {
-                        document.querySelector('.user-avatar').textContent = data.avatar;
-                    }
-                    if (data.user_tag) {
-                        document.getElementById('currentUserTag').textContent = '#' + data.user_tag;
-                    }
-                } else {
-                    // Токен недействителен, перенаправляем на страницу входа
-                    localStorage.removeItem('token');
-                    localStorage.removeItem('username');
-                    window.location.href = 'login.html';
-                }
-            })
-            .catch(error => {
-                console.error('Ошибка при проверке токена:', error);
-                // При ошибке перенаправляем на страницу входа
-                localStorage.removeItem('token');
-                localStorage.removeItem('username');
-                window.location.href = 'login.html';
-            });
-        } else {
-            // Пользователь не авторизован, перенаправляем на страницу входа
-            window.location.href = 'login.html';
-        }
-    });
-
-    // Функция выхода из системы
-    function logout() {
-        const confirmed = confirm('Вы уверены что хотите выйти из профиля?');
-        if (confirmed) {
-            localStorage.removeItem('token');
-            localStorage.removeItem('username');
-            window.location.href = 'login.html';
-        }
-    }
 
     // Функция для отображения панели запросов в друзья
     function showFriendRequestsPanel() {
@@ -468,5 +423,62 @@
         }
     });
 </script>
+<style>
+    .welcome-section {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        background-color: #36393F;
+        color: white;
+    }
+
+    .welcome-content {
+        text-align: center;
+        max-width: 600px;
+        padding: 20px;
+    }
+
+    .welcome-content h1 {
+        font-size: 2.5rem;
+        margin-bottom: 1rem;
+    }
+
+    .welcome-content p {
+        font-size: 1.2rem;
+        margin-bottom: 2rem;
+        color: #B5BAC1;
+    }
+
+    .welcome-buttons {
+        display: flex;
+        gap: 1rem;
+        justify-content: center;
+    }
+
+    .btn {
+        padding: 12px 24px;
+        border-radius: 4px;
+        font-size: 1rem;
+        cursor: pointer;
+        transition: opacity 0.2s;
+    }
+
+    .btn:hover {
+        opacity: 0.9;
+    }
+
+    .btn-primary {
+        background-color: #5865F2;
+        color: white;
+        border: none;
+    }
+
+    .btn-secondary {
+        background-color: transparent;
+        color: white;
+        border: 1px solid #B5BAC1;
+    }
+</style>
 </body>
 </html>
