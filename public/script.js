@@ -135,29 +135,30 @@ async function displayPrivateChat() {
     }
 
     try {
-        // Получаем информацию о пользователе по тегу
+        // Сначала пытаемся найти имя пользователя в списке друзей
         const token = localStorage.getItem('token');
-        const response = await fetch('/api/users/by-tag/' + currentPrivateChatUser, {
+        const friendsResponse = await fetch('/api/friends', {
             method: 'GET',
             headers: {
                 'Authorization': 'Bearer ' + token
             }
         });
 
-        if (response.ok) {
-            const userData = await response.json();
-            const displayName = userData.username || currentPrivateChatUser;
+        let displayName = currentPrivateChatUser; // по умолчанию используем тег
 
-            // Обновляем заголовок чата
-            chatHeader.textContent = `@${displayName}#${currentPrivateChatUser}`;
-
-            // Обновляем подпись в поле ввода
-            messageInput.placeholder = `Сообщение для @${displayName}#${currentPrivateChatUser}...`;
-        } else {
-            // Если не удалось получить имя пользователя, используем тег
-            chatHeader.textContent = `@${currentPrivateChatUser}`;
-            messageInput.placeholder = `Сообщение для @${currentPrivateChatUser}...`;
+        if (friendsResponse.ok) {
+            const friends = await friendsResponse.json();
+            const friend = friends.find(f => f.user_tag === currentPrivateChatUser);
+            if (friend) {
+                displayName = friend.username || currentPrivateChatUser;
+            }
         }
+
+        // Обновляем заголовок чата
+        chatHeader.textContent = `@${displayName}#${currentPrivateChatUser}`;
+
+        // Обновляем подпись в поле ввода
+        messageInput.placeholder = `Сообщение для @${displayName}#${currentPrivateChatUser}...`;
     } catch (error) {
         console.error('Ошибка при получении информации о пользователе:', error);
         // В случае ошибки используем тег
