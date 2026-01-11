@@ -1,5 +1,5 @@
-// Текущий активный канал
-let currentChannel = 'general';
+// Текущий активный пользователь для приватного чата
+let currentPrivateChatUser = null;
 
 // Получаем элементы DOM
 const messageInput = document.querySelector('.message-input');
@@ -8,8 +8,13 @@ const chatHeader = document.querySelector('.chat-header span');
 const channelElements = document.querySelectorAll('.channel');
 const currentUser = localStorage.getItem('username') || 'CurrentUser'; // Имя текущего пользователя
 
-// Функция для загрузки сообщений текущего канала
-async function loadMessages() {
+// Функция для загрузки сообщений текущего приватного чата
+async function loadPrivateMessages() {
+    if (!currentPrivateChatUser) {
+        messagesContainer.innerHTML = '<div class="no-conversation-selected">Выберите пользователя для начала чата</div>';
+        return;
+    }
+
     try {
         // Показываем сообщение о загрузке
         messagesContainer.innerHTML = '<div class="loading-messages">Загрузка сообщений...</div>';
@@ -18,7 +23,7 @@ async function loadMessages() {
         const token = localStorage.getItem('token');
 
         // Загружаем сообщения с сервера
-        const response = await fetch(`/api/messages/channel/${currentChannel}`, {
+        const response = await fetch(`/api/messages/private/${currentPrivateChatUser}`, {
             method: 'GET',
             headers: {
                 'Authorization': 'Bearer ' + token
@@ -65,30 +70,30 @@ function addMessageToDOM(message) {
     messagesContainer.appendChild(messageElement);
 }
 
-// Функция для отправки нового сообщения
-async function sendMessage(text) {
-    if (text.trim() === '') return; // Не отправляем пустые сообщения
+// Функция для отправки нового приватного сообщения
+async function sendPrivateMessage(text) {
+    if (!currentPrivateChatUser || text.trim() === '') return; // Не отправляем пустые сообщения
 
     try {
         // Получаем токен из localStorage
         const token = localStorage.getItem('token');
 
         // Отправляем сообщение на сервер
-        const response = await fetch('/api/messages/send', {
+        const response = await fetch('/api/messages/private', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': 'Bearer ' + token
             },
             body: JSON.stringify({
-                channel: currentChannel,
-                text: text
+                receiverTag: currentPrivateChatUser,
+                message: text
             })
         });
 
         if (response.ok) {
             // Если сообщение успешно отправлено, обновляем чат
-            loadMessages();
+            loadPrivateMessages();
             // Очищаем поле ввода
             messageInput.value = '';
         } else {
@@ -103,45 +108,83 @@ async function sendMessage(text) {
     }
 }
 
-// Функция для отображения сообщений текущего канала
-function displayMessages() {
+// Функция для отображения сообщений текущего приватного чата
+function displayPrivateChat() {
     // Обновляем заголовок чата
-    chatHeader.textContent = `#${currentChannel}`;
+    chatHeader.textContent = `@${currentPrivateChatUser}`;
 
     // Обновляем подпись в поле ввода
-    messageInput.placeholder = `Начни писать в #${currentChannel}...`;
+    messageInput.placeholder = `Сообщение для @${currentPrivateChatUser}...`;
 
     // Загружаем сообщения с сервера
-    loadMessages();
+    loadPrivateMessages();
 }
 
 // Обработка отправки сообщения по нажатию Enter
 messageInput.addEventListener('keypress', function(e) {
     if (e.key === 'Enter') {
-        sendMessage(messageInput.value);
+        sendPrivateMessage(messageInput.value);
     }
 });
 
-// Обработка переключения между каналами
-channelElements.forEach(channelEl => {
-    channelEl.addEventListener('click', function() {
-        // Удаляем класс активного канала
-        document.querySelectorAll('.channel').forEach(ch => {
-            ch.classList.remove('active-channel');
+// Обработка клика по друзьям для начала приватного чата
+// Мы добавим обработчики динамически, когда будем получать список друзей
+
+// Функция для обновления списка друзей и добавления обработчиков
+async function updateFriendsList() {
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch('/api/friends', {
+            method: 'GET',
+            headers: {
+                'Authorization': 'Bearer ' + token
+            }
         });
 
-        // Добавляем класс активного канала к выбранному
-        this.classList.add('active-channel');
+        if (response.ok) {
+            const friends = await response.json();
+            const friendsSection = document.querySelector('.friends-section');
 
-        // Получаем имя канала (убираем символ #)
-        const channelName = this.textContent.replace('#', '').trim();
+            // Очищаем текущий список друзей
+            const existingFriends = friendsSection.querySelectorAll('.friend-item');
+            existingFriends.forEach(friend => friend.remove());
 
-        // Обновляем текущий канал и отображение
-        currentChannel = channelName;
-        displayMessages();
-    });
+            // Добавляем друзей в список
+            friends.forEach(friend => {
+                const friendElement = document.createElement('div');
+                friendElement.className = 'friend-item channel';
+                friendElement.innerHTML = `
+                    <div class="avatar">${friend.avatar || '👤'}</div>
+                    <span>${friend.username}<span class="user-tag">#${friend.user_tag}</span></span>
+                `;
+
+                // Добавляем обработчик клика для начала приватного чата
+                friendElement.addEventListener('click', function() {
+                    // Удаляем класс активного канала
+                    document.querySelectorAll('.channel').forEach(ch => {
+                        ch.classList.remove('active-channel');
+                    });
+
+                    // Добавляем класс активного канала к выбранному
+                    this.classList.add('active-channel');
+
+                    // Устанавливаем текущего пользователя для приватного чата
+                    currentPrivateChatUser = friend.user_tag;
+
+                    // Обновляем отображение чата
+                    displayPrivateChat();
+                });
+
+                friendsSection.appendChild(friendElement);
+            });
+        }
+    } catch (error) {
+        console.error('Ошибка при загрузке друзей:', error);
+    }
+}
+
+// Инициализация при загрузке
+document.addEventListener('DOMContentLoaded', function() {
+    // Обновляем список друзей
+    updateFriendsList();
 });
-
-// Устанавливаем начальный активный канал
-document.querySelector('.channel').classList.add('active-channel');
-displayMessages();
