@@ -301,32 +301,37 @@ async function showFriendRequestsNotification() {
 
             if (requests.length === 0) {
                 requestsList.innerHTML = '<div class="no-requests-small">Нет входящих запросов</div>';
+                // Оставляем уведомления видимыми с сообщением
                 notification.style.display = 'block';
                 console.log('Нет входящих запросов');
-                return;
+            } else {
+                // Очищаем список перед добавлением новых запросов
+                requestsList.innerHTML = '';
+
+                // Добавляем каждый запрос в список
+                requests.forEach(request => {
+                    const requestItem = document.createElement('div');
+                    requestItem.className = 'request-item-small';
+
+                    requestItem.innerHTML = `
+                        <div class="avatar-small">${request.avatar || '👤'}</div>
+                        <div class="user-info-small">
+                            <div class="username-small">${request.username}</div>
+                            <div class="user-tag-small">#${request.user_tag}</div>
+                        </div>
+                        <div class="request-actions-small">
+                            <button class="request-action-btn-small accept-small" onclick="acceptFriendRequestFromNotification(${request.id})">✓</button>
+                            <button class="request-action-btn-small reject-small" onclick="rejectFriendRequestFromNotification(${request.id})">×</button>
+                        </div>
+                    `;
+
+                    requestsList.appendChild(requestItem);
+                });
+
+                // Всегда отображаем уведомления
+                notification.style.display = 'block';
             }
 
-            // Добавляем каждый запрос в список
-            requests.forEach(request => {
-                const requestItem = document.createElement('div');
-                requestItem.className = 'request-item-small';
-
-                requestItem.innerHTML = `
-                    <div class="avatar-small">${request.avatar || '👤'}</div>
-                    <div class="user-info-small">
-                        <div class="username-small">${request.username}</div>
-                        <div class="user-tag-small">#${request.user_tag}</div>
-                    </div>
-                    <div class="request-actions-small">
-                        <button class="request-action-btn-small accept-small" onclick="acceptFriendRequestFromNotification(${request.id})">✓</button>
-                        <button class="request-action-btn-small reject-small" onclick="rejectFriendRequestFromNotification(${request.id})">×</button>
-                    </div>
-                `;
-
-                requestsList.appendChild(requestItem);
-            });
-
-            notification.style.display = 'block';
             console.log('Панель уведомлений отображена');
         } else {
             const errorText = await response.text();
@@ -341,9 +346,16 @@ async function showFriendRequestsNotification() {
     }
 }
 
-// Функция для закрытия панели уведомлений о заявках в друзья
+// Функция для обновления панели уведомлений о заявках в друзья
 function closeFriendRequestsNotification() {
-    document.getElementById('friendRequestsNotification').style.display = 'none';
+    // Обновляем содержимое уведомлений, не скрывая их
+    const requestsList = document.getElementById('incomingRequestsListSmall');
+
+    // Очищаем список запросов
+    requestsList.innerHTML = '<div class="no-requests-small">Нет входящих запросов</div>';
+
+    // Обновляем уведомления, чтобы отразить изменения
+    showFriendRequestsNotification();
 }
 
 // Функция для принятия запроса в друзья из уведомления
