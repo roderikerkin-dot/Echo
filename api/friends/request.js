@@ -45,9 +45,9 @@ module.exports = async (req, res) => {
     const { userTag } = req.body;
     const senderId = user.userId;
 
-    // Проверяем, что тег пользователя передан
-    if (!userTag) {
-      return res.status(400).json({ message: 'Не указан тег пользователя' });
+    // Проверяем, что тег пользователя передан и имеет правильный формат
+    if (!userTag || typeof userTag !== 'string' || !/^\d{6}$/.test(userTag)) {
+      return res.status(400).json({ message: 'Неверный формат тега пользователя (ожидается 6-значное число)' });
     }
 
     // Находим получателя запроса по тегу

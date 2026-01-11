@@ -279,6 +279,14 @@ app.post('/api/login', async (req, res) => {
     }
 });
 
+// Массив для хранения отозванных токенов (в реальном приложении используйте Redis или базу данных)
+const blacklistedTokens = new Set();
+
+// Функция для добавления токена в черный список
+function blacklistToken(token) {
+    blacklistedTokens.add(token);
+}
+
 // Защита маршрутов с помощью middleware
 const authenticateToken = (req, res, next) => {
     const authHeader = req.headers['authorization'];
@@ -286,6 +294,11 @@ const authenticateToken = (req, res, next) => {
 
     if (!token) {
         return res.status(401).json({ message: 'Требуется аутентификация' });
+    }
+
+    // Проверяем, не находится ли токен в черном списке
+    if (blacklistedTokens.has(token)) {
+        return res.status(403).json({ message: 'Токен отозван' });
     }
 
     jwt.verify(token, JWT_SECRET, (err, user) => {
@@ -324,7 +337,7 @@ app.put('/api/profile', authenticateToken, async (req, res) => {
     try {
         const { data, error } = await supabase
             .from('users')
-            .update({ 
+            .update({
                 username: username || undefined,
                 about_me: about || undefined,
                 avatar: avatar || undefined
@@ -347,6 +360,18 @@ app.put('/api/profile', authenticateToken, async (req, res) => {
         console.error('Ошибка при обновлении профиля:', error);
         res.status(500).json({ message: 'Ошибка сервера' });
     }
+});
+
+// Маршрут для выхода из системы (отзыв токена)
+app.post('/api/logout', authenticateToken, async (req, res) => {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
+
+    if (token) {
+        blacklistToken(token);
+    }
+
+    res.json({ message: 'Выход выполнен успешно' });
 });
 
 // Маршрут для аутентификации через GitHub
@@ -376,10 +401,31 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
+// Объект для отслеживания количества запросов в друзья (в реальном приложении используйте Redis или базу данных)
+const friendRequestLimits = {};
+
 // Маршрут для отправки запроса в друзья
 app.post('/api/friends/request', authenticateToken, async (req, res) => {
     const senderId = req.user.userId;
     const { userTag } = req.body; // получаем тег пользователя, которому отправляем запрос
+
+    // Проверяем формат тега (6 цифр)
+    if (!userTag || typeof userTag !== 'string' || !/^\d{6}$/.test(userTag)) {
+        return res.status(400).json({ message: 'Неверный формат тега пользователя (ожидается 6-значное число)' });
+    }
+
+    // Проверяем лимит на количество запросов в день
+    const today = new Date().toDateString();
+    const userKey = `${senderId}_${today}`;
+
+    if (!friendRequestLimits[userKey]) {
+        friendRequestLimits[userKey] = 0;
+    }
+
+    // Ограничиваем количество запросов в день (например, до 20)
+    if (friendRequestLimits[userKey] >= 20) {
+        return res.status(429).json({ message: 'Превышено количество запросов в друзья за сегодня' });
+    }
 
     try {
         // Находим получателя запроса по тегу
@@ -437,6 +483,9 @@ app.post('/api/friends/request', authenticateToken, async (req, res) => {
             console.error('Ошибка при создании запроса в друзья:', insertError);
             return res.status(500).json({ message: 'Ошибка сервера' });
         }
+
+        // Увеличиваем счетчик запросов
+        friendRequestLimits[userKey]++;
 
         res.json({ message: 'Запрос в друзья успешно отправлен', requestId: newRequest.id });
     } catch (error) {
@@ -672,10 +721,18 @@ async function getFriendInfo(userId) {
     return user || {};
 }
 
+// Объект для отслеживания частоты отправки сообщений (в реальном приложении используйте Redis или базу данных)
+const messageRateLimits = {};
+
 // Маршрут для отправки личного сообщения
 app.post('/api/messages/private', authenticateToken, async (req, res) => {
     const senderId = req.user.userId;
     const { receiverTag, message } = req.body;
+
+    // Проверяем формат тега получателя
+    if (!receiverTag || typeof receiverTag !== 'string' || !/^\d{6}$/.test(receiverTag)) {
+        return res.status(400).json({ message: 'Неверный формат тега получателя (ожидается 6-значное число)' });
+    }
 
     // Проверяем, что сообщение не пустое
     if (!message || message.trim().length === 0) {
@@ -683,7 +740,20 @@ app.post('/api/messages/private', authenticateToken, async (req, res) => {
     }
 
     if (message.trim().length > 1000) {
-        return res.status(400).json({ message: 'Сообщение слишком длинное (максимум 1000 символов' });
+        return res.status(400).json({ message: 'Сообщение слишком длинное (максимум 1000 символов)' });
+    }
+
+    // Проверяем лимит на количество сообщений в минуту
+    const now = Date.now();
+    const minuteAgo = now - 60000; // 60 секунд в миллисекундах
+    const userMessageHistory = messageRateLimits[senderId] || [];
+
+    // Удаляем старые записи (старше минуты)
+    const recentMessages = userMessageHistory.filter(timestamp => timestamp > minuteAgo);
+
+    // Ограничиваем количество сообщений в минуту (например, до 10)
+    if (recentMessages.length >= 10) {
+        return res.status(429).json({ message: 'Превышено количество сообщений в минуту' });
     }
 
     try {
@@ -700,7 +770,7 @@ app.post('/api/messages/private', authenticateToken, async (req, res) => {
 
         const receiverId = receiver.id;
 
-        // Проверяем, являются ли пользователи друзьями
+        // Проверяем, являются ли пользователи друзьями или есть активный запрос в друзья
         const { data: friendship, error: friendshipError } = await supabase
             .from('friends')
             .select('*')
@@ -708,7 +778,16 @@ app.post('/api/messages/private', authenticateToken, async (req, res) => {
             .single();
 
         if (!friendship) {
-            return res.status(400).json({ message: 'Можно отправлять сообщения только друзьям' });
+            // Если не друзья, проверим, есть ли активный запрос в друзья
+            const { data: request, error: requestError } = await supabase
+                .from('friend_requests')
+                .select('*')
+                .or(`and(sender_id.eq.${senderId},receiver_id.eq.${receiverId}),and(sender_id.eq.${receiverId},receiver_id.eq.${senderId})`)
+                .single();
+
+            if (!request || request.status !== 'pending') {
+                return res.status(400).json({ message: 'Можно отправлять сообщения только друзьям или пользователям с активным запросом в друзья' });
+            }
         }
 
         // Проверяем, не отправляет ли пользователь сообщение самому себе
@@ -719,10 +798,10 @@ app.post('/api/messages/private', authenticateToken, async (req, res) => {
         // Сохраняем сообщение в базу данных
         const { data: newMessage, error: insertError } = await supabase
             .from('private_messages')
-            .insert([{ 
-                sender_id: senderId, 
-                receiver_id: receiverId, 
-                message: message.trim() 
+            .insert([{
+                sender_id: senderId,
+                receiver_id: receiverId,
+                message: message.trim()
             }])
             .select()
             .single();
@@ -731,6 +810,10 @@ app.post('/api/messages/private', authenticateToken, async (req, res) => {
             console.error('Ошибка при сохранении сообщения:', insertError);
             return res.status(500).json({ message: 'Ошибка сервера' });
         }
+
+        // Добавляем время отправки сообщения в историю
+        recentMessages.push(now);
+        messageRateLimits[senderId] = recentMessages;
 
         res.json({
             message: 'Сообщение успешно отправлено',
@@ -762,7 +845,7 @@ app.get('/api/messages/private/:userTag', authenticateToken, async (req, res) =>
 
         const targetUserId = targetUser.id;
 
-        // Проверяем, являются ли пользователи друзьями
+        // Проверяем, являются ли пользователи друзьями или есть активный запрос в друзья
         const { data: friendship, error: friendshipError } = await supabase
             .from('friends')
             .select('*')
@@ -770,7 +853,16 @@ app.get('/api/messages/private/:userTag', authenticateToken, async (req, res) =>
             .single();
 
         if (!friendship) {
-            return res.status(400).json({ message: 'Можно просматривать сообщения только с друзьями' });
+            // Если не друзья, проверим, есть ли активный запрос в друзья
+            const { data: request, error: requestError } = await supabase
+                .from('friend_requests')
+                .select('*')
+                .or(`and(sender_id.eq.${userId},receiver_id.eq.${targetUserId}),and(sender_id.eq.${targetUserId},receiver_id.eq.${userId})`)
+                .single();
+
+            if (!request || request.status !== 'pending') {
+                return res.status(400).json({ message: 'Можно просматривать сообщения только с друзьями или пользователями с активным запросом в друзья' });
+            }
         }
 
         // Получаем историю сообщений между пользователями
@@ -980,6 +1072,45 @@ app.get('/api/users/by-tag/:tag', authenticateToken, async (req, res) => {
         console.error('Ошибка при получении информации о пользователе:', error);
         res.status(500).json({ message: 'Ошибка сервера' });
     }
+});
+
+// Маршрут для получения информации о пользователе по тегу
+app.get('/api/users/by-tag/:tag', authenticateToken, async (req, res) => {
+    const { tag } = req.params;
+
+    try {
+        // Находим пользователя по тегу
+        const { data: user, error } = await supabase
+            .from('users')
+            .select('id, username, user_tag, avatar')
+            .eq('user_tag', tag)
+            .single();
+
+        if (error || !user) {
+            return res.status(404).json({ message: 'Пользователь с таким тегом не найден' });
+        }
+
+        // Возвращаем информацию о пользователе
+        res.json({
+            id: user.id,
+            username: user.username,
+            user_tag: user.user_tag,
+            avatar: user.avatar
+        });
+    } catch (error) {
+        console.error('Ошибка при получении информации о пользователе:', error);
+        res.status(500).json({ message: 'Ошибка сервера' });
+    }
+});
+
+// Маршрут для обработки ошибок (для логирования клиентских ошибок)
+app.post('/api/errors', authenticateToken, async (req, res) => {
+    const { error, context } = req.body;
+
+    // В реальном приложении здесь можно сохранить ошибку в базу данных для анализа
+    console.error(`[CLIENT ERROR] Context: ${context}, Error: ${error}`);
+
+    res.json({ message: 'Ошибка получена' });
 });
 
 // Экспортируем приложение для использования с Vercel

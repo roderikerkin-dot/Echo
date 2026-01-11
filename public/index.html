@@ -245,7 +245,7 @@
             successMessage.style.display = 'none';
 
             // Проверяем, что тег введен и состоит из 6 цифр
-            if (!friendTag || friendTag.length !== 6 || !/^\d+$/.test(friendTag)) {
+            if (!friendTag || typeof friendTag !== 'string' || friendTag.length !== 6 || !/^\d{6}$/.test(friendTag)) {
                 errorMessage.textContent = 'Пожалуйста, введите корректный 6-значный тег пользователя';
                 errorMessage.style.display = 'block';
                 return;
