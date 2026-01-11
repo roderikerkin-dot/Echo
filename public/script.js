@@ -66,6 +66,19 @@ async function loadPrivateMessages() {
 
 // Функция для добавления сообщения в DOM
 function addMessageToDOM(message) {
+    // Логируем объект сообщения для отладки
+    console.log('Сообщение:', message);
+
+    // Определяем имя отправителя
+    // В зависимости от структуры данных, имя может быть в разных полях
+    const senderName = message.sender_username || message.username || message.users?.username || 'Unknown';
+
+    // Определяем аватар
+    const avatar = message.sender_avatar || message.avatar || message.users?.avatar || '👤';
+
+    // Определяем текст сообщения
+    const text = message.text || message.message || '';
+
     // Форматируем дату и время в формат дд.мм.гг\чч:мм
     let formattedTimestamp = message.timestamp;
     if (message.timestamp) {
@@ -88,11 +101,11 @@ function addMessageToDOM(message) {
     messageElement.className = 'message';
 
     messageElement.innerHTML = `
-        <div class="avatar">${message.avatar || '👤'}</div>
+        <div class="avatar">${avatar}</div>
         <div class="message-content">
-            <div class="username">${message.username || 'Unknown'}</div>
+            <div class="username">${senderName}</div>
             <div class="timestamp">${formattedTimestamp}</div>
-            <div class="text">${message.text}</div>
+            <div class="text">${text}</div>
         </div>
     `;
 
