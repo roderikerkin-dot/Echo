@@ -223,9 +223,9 @@ async function sendPrivateMessage(text) {
 async function displayPrivateChat() {
     if (!currentPrivateChatUser) {
         // Если пользователь не выбран, показываем пустое сообщение или инструкцию
-        chatHeader.textContent = 'Выберите друга для начала чата';
+        chatHeader.textContent = ' @' + displayName + '#' + currentPrivateChatUser;
         messageInput.placeholder = 'Выберите друга для отправки сообщения...';
-        messagesContainer.innerHTML = '<div class="no-conversation-selected">Выберите пользователя для начала чата</div>';
+        messageInput.placeholder = 'Сообщение для @' + (displayName || 'Unknown') + '#' + (currentPrivateChatUser || '000000') + '...';
         return;
     }
 
@@ -336,7 +336,7 @@ async function updateFriendsList() {
                     contact.user_tag === conversation.contact_user_tag
                 );
 
-                if (!exists) {
+                if (!exists && conversation.contact_user_tag && conversation.contact_username) {
                     // Добавляем пользователя из переписки
                     allContacts.push({
                         id: conversation.contact_id,
