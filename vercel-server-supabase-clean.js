@@ -896,11 +896,15 @@ app.get('/api/messages/private/:userTag', authenticateToken, async (req, res) =>
         }
 
         // Форматируем сообщения
-        const formattedMessages = messages.map(msg => ({
-            ...msg,
-            sender_username: msg.users?.username,
-            sender_avatar: msg.users?.avatar || '👤'
-        }));
+        const formattedMessages = messages.map(msg => {
+            // Получаем информацию о пользователе напрямую, если соединение не удалось
+            const userInfo = msg.users || {};
+            return {
+                ...msg,
+                sender_username: userInfo.username,
+                sender_avatar: userInfo.avatar || '👤'
+            };
+        });
 
         res.json(formattedMessages);
     } catch (error) {
@@ -932,13 +936,17 @@ app.get('/api/messages/channel/:channel', authenticateToken, async (req, res) =>
         }
 
         // Форматируем сообщения
-        const formattedMessages = messages.map(msg => ({
-            id: msg.id,
-            username: msg.users?.username,
-            avatar: msg.users?.avatar || '👤',
-            timestamp: msg.timestamp,
-            text: msg.text
-        }));
+        const formattedMessages = messages.map(msg => {
+            // Получаем информацию о пользователе напрямую, если соединение не удалось
+            const userInfo = msg.users || {};
+            return {
+                id: msg.id,
+                username: userInfo.username,
+                avatar: userInfo.avatar || '👤',
+                timestamp: msg.timestamp,
+                text: msg.text
+            };
+        });
 
         res.json(formattedMessages);
     } catch (error) {
@@ -982,7 +990,10 @@ app.post('/api/messages/send', authenticateToken, async (req, res) => {
                 channel: channel,
                 text: text.trim()
             }])
-            .select()
+            .select(`
+                *,
+                users!channel_messages_sender_id_fkey(username, avatar)
+            `)
             .single();
 
         if (insertError) {
