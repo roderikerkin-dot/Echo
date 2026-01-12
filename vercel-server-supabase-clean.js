@@ -1053,14 +1053,17 @@ app.get('/api/messages/private', authenticateToken, async (req, res) => {
 
                 console.log('ContactUser:', contactUser); // Добавляем логирование
 
-                conversationsMap.set(contactId, {
-                    contact_id: contactId,
-                    contact_username: contactUser?.username,
-                    contact_avatar: contactUser?.avatar || '👤',
-                    contact_user_tag: contactUser?.user_tag,
-                    last_message: message.message,
-                    last_message_time: message.timestamp
-                });
+                // Проверяем, что все необходимые поля определены
+                if (contactUser && contactUser.username && contactUser.user_tag) {
+                    conversationsMap.set(contactId, {
+                        contact_id: contactId,
+                        contact_username: contactUser.username,
+                        contact_avatar: contactUser.avatar || '👤',
+                        contact_user_tag: contactUser.user_tag,
+                        last_message: message.message,
+                        last_message_time: message.timestamp
+                    });
+                }
             }
         });
 
