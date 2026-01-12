@@ -402,6 +402,8 @@ app.get('/', (req, res) => {
 });
 
 // Объект для отслеживания количества запросов в друзья (в реальном приложении используйте Redis или базу данных)
+// ВНИМАНИЕ: В текущей реализации данные хранятся в памяти и не персистентны.
+// Это может быть уязвимо к атакам в production-среде.
 const friendRequestLimits = {};
 
 // Маршрут для отправки запроса в друзья
@@ -712,16 +714,28 @@ app.get('/api/friends', authenticateToken, async (req, res) => {
 
 // Вспомогательная функция для получения информации о друге
 async function getFriendInfo(userId) {
-    const { data: user, error } = await supabase
-        .from('users')
-        .select('username, avatar, user_tag')
-        .eq('id', userId)
-        .single();
-        
-    return user || {};
+    try {
+        const { data: user, error } = await supabase
+            .from('users')
+            .select('username, avatar, user_tag')
+            .eq('id', userId)
+            .single();
+
+        if (error) {
+            console.error('Ошибка при получении информации о друге:', error);
+            return {};
+        }
+
+        return user || {};
+    } catch (error) {
+        console.error('Ошибка при получении информации о друге:', error);
+        return {};
+    }
 }
 
 // Объект для отслеживания частоты отправки сообщений (в реальном приложении используйте Redis или базу данных)
+// ВНИМАНИЕ: В текущей реализации данные хранятся в памяти и не персистентны.
+// Это может быть уязвимо к атакам в production-среде.
 const messageRateLimits = {};
 
 // Маршрут для отправки личного сообщения
@@ -734,8 +748,8 @@ app.post('/api/messages/private', authenticateToken, async (req, res) => {
         return res.status(400).json({ message: 'Неверный формат тега получателя (ожидается 6-значное число)' });
     }
 
-    // Проверяем, что сообщение не пустое
-    if (!message || message.trim().length === 0) {
+    // Проверяем, что сообщение не пустое и является строкой
+    if (!message || typeof message !== 'string' || message.trim().length === 0) {
         return res.status(400).json({ message: 'Сообщение не может быть пустым' });
     }
 
@@ -1045,63 +1059,7 @@ app.get('/api/messages/private', authenticateToken, async (req, res) => {
     }
 });
 
-// Маршрут для получения информации о пользователе по тегу
-app.get('/api/users/by-tag/:tag', authenticateToken, async (req, res) => {
-    const { tag } = req.params;
 
-    try {
-        // Находим пользователя по тегу
-        const { data: user, error } = await supabase
-            .from('users')
-            .select('id, username, user_tag, avatar')
-            .eq('user_tag', tag)
-            .single();
-
-        if (error || !user) {
-            return res.status(404).json({ message: 'Пользователь с таким тегом не найден' });
-        }
-
-        // Возвращаем информацию о пользователе
-        res.json({
-            id: user.id,
-            username: user.username,
-            user_tag: user.user_tag,
-            avatar: user.avatar
-        });
-    } catch (error) {
-        console.error('Ошибка при получении информации о пользователе:', error);
-        res.status(500).json({ message: 'Ошибка сервера' });
-    }
-});
-
-// Маршрут для получения информации о пользователе по тегу
-app.get('/api/users/by-tag/:tag', authenticateToken, async (req, res) => {
-    const { tag } = req.params;
-
-    try {
-        // Находим пользователя по тегу
-        const { data: user, error } = await supabase
-            .from('users')
-            .select('id, username, user_tag, avatar')
-            .eq('user_tag', tag)
-            .single();
-
-        if (error || !user) {
-            return res.status(404).json({ message: 'Пользователь с таким тегом не найден' });
-        }
-
-        // Возвращаем информацию о пользователе
-        res.json({
-            id: user.id,
-            username: user.username,
-            user_tag: user.user_tag,
-            avatar: user.avatar
-        });
-    } catch (error) {
-        console.error('Ошибка при получении информации о пользователе:', error);
-        res.status(500).json({ message: 'Ошибка сервера' });
-    }
-});
 
 // Маршрут для обработки ошибок (для логирования клиентских ошибок)
 app.post('/api/errors', authenticateToken, async (req, res) => {
