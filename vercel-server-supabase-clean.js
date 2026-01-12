@@ -1047,10 +1047,12 @@ app.get('/api/messages/private', authenticateToken, async (req, res) => {
             if (!conversationsMap.has(contactId) || 
                 new Date(message.timestamp) > new Date(conversationsMap.get(contactId).last_message_time)) {
                 
-                const contactUser = message.sender_id === userId 
-                    ? message.receiver_user 
+                const contactUser = message.sender_id === userId
+                    ? message.receiver_user
                     : message.sender_user;
-                
+
+                console.log('ContactUser:', contactUser); // Добавляем логирование
+
                 conversationsMap.set(contactId, {
                     contact_id: contactId,
                     contact_username: contactUser?.username,
