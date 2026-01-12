@@ -609,9 +609,11 @@ app.post('/api/friends/requests/:requestId/accept', authenticateToken, async (re
         // Создаем запись о дружбе
         const { data: friendship, error: insertError } = await supabase
             .from('friends')
-            .insert([{ user1_id: request.sender_id, user2_id: request.receiver_id }])
-            .select()
-            .single();
+            .insert([
+                { user1_id: request.sender_id, user2_id: request.receiver_id },
+                { user1_id: request.receiver_id, user2_id: request.sender_id }
+            ])
+            .select();
 
         if (insertError) {
             // Откатываем изменения, если возникла ошибка
@@ -899,6 +901,7 @@ app.get('/api/messages/private/:userTag', authenticateToken, async (req, res) =>
         const formattedMessages = messages.map(msg => {
             // Получаем информацию о пользователе напрямую, если соединение не удалось
             const userInfo = msg.users || {};
+            console.log('UserInfo:', userInfo); // Добавляем логирование
             return {
                 ...msg,
                 sender_username: userInfo.username,
