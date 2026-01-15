@@ -735,6 +735,11 @@ async function getFriendInfo(userId) {
     }
 }
 
+// Объект для отслеживания частоты отправки сообщений (в реальном приложении используйте Redis или базу данных)
+// ВНИМАНИЕ: В текущей реализации данные хранятся в памяти и не персистентны.
+// Это может быть уязвимо к атакам в production-среде.
+const messageRateLimits = {};
+
 // Маршрут для отправки личного сообщения
 app.post('/api/messages/private', authenticateToken, async (req, res) => {
     const senderId = req.user.userId;
@@ -754,22 +759,16 @@ app.post('/api/messages/private', authenticateToken, async (req, res) => {
         return res.status(400).json({ message: 'Сообщение слишком длинное (максимум 1000 символов)' });
     }
 
-    // Проверяем лимит на количество сообщений в минуту с помощью Supabase
-    const oneMinuteAgo = new Date(Date.now() - 60000).toISOString();
+    // Проверяем лимит на количество сообщений в минуту
+    const now = Date.now();
+    const minuteAgo = now - 60000; // 60 секунд в миллисекундах
+    const userMessageHistory = messageRateLimits[senderId] || [];
 
-    const { count, error: countError } = await supabase
-        .from('private_messages')
-        .select('*', { count: 'exact', head: true })
-        .eq('sender_id', senderId)
-        .gte('timestamp', oneMinuteAgo);
-
-    if (countError) {
-        console.error('Ошибка при проверке лимита сообщений:', countError);
-        return res.status(500).json({ message: 'Ошибка сервера' });
-    }
+    // Удаляем старые записи (старше минуты)
+    const recentMessages = userMessageHistory.filter(timestamp => timestamp > minuteAgo);
 
     // Ограничиваем количество сообщений в минуту (например, до 10)
-    if (count >= 10) {
+    if (recentMessages.length >= 10) {
         return res.status(429).json({ message: 'Превышено количество сообщений в минуту' });
     }
 
