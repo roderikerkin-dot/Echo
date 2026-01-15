@@ -690,26 +690,22 @@ app.get('/api/friends', authenticateToken, async (req, res) => {
         }
 
         // Формируем список друзей, независимо от того, кто из пользователей является текущим
-        const friendsList = [];
-        for (const friendship of friendships) {
+        const friendsList = await Promise.all(friendships.map(async (friendship) => {
             // Определяем, какой пользователь является "другом" относительно текущего пользователя
-            let friend;
-            if (friendship.user1_id === userId) {
-                friend = friendship.users;
-            } else {
-                friend = {
+            const friend = friendship.user1_id === userId
+                ? friendship.users
+                : {
                     id: friendship.user1_id,
                     ...(await getFriendInfo(friendship.user1_id))
                 };
-            }
 
-            friendsList.push({
+            return {
                 id: friend.id,
                 username: friend.username,
                 avatar: friend.avatar || '👤',
                 user_tag: friend.user_tag
-            });
-        }
+            };
+        }));
 
         res.json(friendsList);
     } catch (error) {
