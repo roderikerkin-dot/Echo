@@ -995,14 +995,14 @@ app.post('/api/messages/send', authenticateToken, async (req, res) => {
         }
 
         // Сохраняем сообщение в базу данных
-        const { data: newMessage, error: insertError } = await supabase
+        const { data: insertedMessage, error: insertError } = await supabase
             .from('channel_messages')
             .insert([{
                 sender_id: userId,
                 channel: channel,
                 text: text.trim()
             }])
-            .select()
+            .select('id, timestamp')
             .single();
 
         if (insertError) {
@@ -1024,8 +1024,8 @@ app.post('/api/messages/send', authenticateToken, async (req, res) => {
 
         res.json({
             message: 'Сообщение успешно отправлено',
-            messageId: newMessage.id,
-            timestamp: newMessage.timestamp
+            messageId: insertedMessage.id,
+            timestamp: insertedMessage.timestamp
         });
     } catch (error) {
         console.error('Ошибка при отправке сообщения:', error);
