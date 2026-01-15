@@ -633,6 +633,9 @@ app.post('/api/messages/private', authenticateToken, (req, res) => {
     // из-за отсутствия персистентности состояния между вызовами в serverless среде
 
     // Находим получателя по тегу
+    // ПРИМЕЧАНИЕ: В реальном приложении в serverless-окружении рекомендуется использовать
+    // внешнее хранилище (например, Redis) или Supabase для эффективного rate limiting
+    // из-за отсутствия персистентности состояния между вызовами в serverless среде
     db.get('SELECT id FROM users WHERE user_tag = ?', [receiverTag], (err, receiver) => {
         if (err) {
             console.error('Ошибка при поиске получателя:', err);
