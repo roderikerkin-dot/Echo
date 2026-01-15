@@ -39,10 +39,21 @@ async function testSupabaseConnection() {
   }
 }
 
-// Выполняем проверку подключения при инициализации
-testSupabaseConnection().catch(err => {
-  console.error('Ошибка при инициализации подключения к Supabase:', err);
-});
+// Проверка подключения к Supabase будет выполняться при первом запросе
+// для избежания проблем с инициализацией в serverless среде
+let supabaseInitialized = false;
+
+async function initializeSupabase() {
+  if (!supabaseInitialized) {
+    try {
+      await testSupabaseConnection();
+      supabaseInitialized = true;
+    } catch (err) {
+      console.error('Ошибка при инициализации подключения к Supabase:', err);
+      throw err;
+    }
+  }
+}
 
 // Middleware
 app.use(cors());
@@ -169,6 +180,7 @@ async function generateUniqueTagWithRetry(attempts = 0) {
 // Маршрут для регистрации
 app.post('/api/register', async (req, res) => {
     try {
+        await initializeSupabase(); // Инициализация Supabase перед использованием
         const { email, password } = req.body;
 
         // Проверка, что пароль не менее 6 символов
@@ -239,6 +251,7 @@ app.post('/api/login', async (req, res) => {
     const { email, password } = req.body;
 
     try {
+        await initializeSupabase(); // Инициализация Supabase перед использованием
         // Поиск пользователя в базе данных
         const { data: user, error } = await supabase
             .from('users')
@@ -313,6 +326,7 @@ const authenticateToken = (req, res, next) => {
 // Маршрут для получения информации о пользователе
 app.get('/api/profile', authenticateToken, async (req, res) => {
     try {
+        await initializeSupabase(); // Инициализация Supabase перед использованием
         const { data: user, error } = await supabase
             .from('users')
             .select('id, email, username, user_tag, about_me, avatar, registration_date')
@@ -335,6 +349,7 @@ app.put('/api/profile', authenticateToken, async (req, res) => {
     const { username, about, avatar } = req.body;
 
     try {
+        await initializeSupabase(); // Инициализация Supabase перед использованием
         const { data, error } = await supabase
             .from('users')
             .update({
@@ -411,10 +426,13 @@ app.post('/api/friends/request', authenticateToken, async (req, res) => {
     const senderId = req.user.userId;
     const { userTag } = req.body; // получаем тег пользователя, которому отправляем запрос
 
-    // Проверяем формат тега (6 цифр)
-    if (!userTag || typeof userTag !== 'string' || !/^\d{6}$/.test(userTag)) {
-        return res.status(400).json({ message: 'Неверный формат тега пользователя (ожидается 6-значное число)' });
-    }
+    try {
+        await initializeSupabase(); // Инициализация Supabase перед использованием
+
+        // Проверяем формат тега (6 цифр)
+        if (!userTag || typeof userTag !== 'string' || !/^\d{6}$/.test(userTag)) {
+            return res.status(400).json({ message: 'Неверный формат тега пользователя (ожидается 6-значное число)' });
+        }
 
     // Проверяем лимит на количество запросов в день
     const today = new Date().toDateString();
@@ -501,6 +519,8 @@ app.get('/api/friends/requests/incoming', authenticateToken, async (req, res) =>
     const userId = req.user.userId;
 
     try {
+        await initializeSupabase(); // Инициализация Supabase перед использованием
+
         // Получаем входящие запросы в друзья с информацией о пользователях
         const { data: requests, error } = await supabase
             .from('friend_requests')
@@ -541,6 +561,8 @@ app.get('/api/friends/requests/outgoing', authenticateToken, async (req, res) =>
     const userId = req.user.userId;
 
     try {
+        await initializeSupabase(); // Инициализация Supabase перед использованием
+
         // Получаем исходящие запросы в друзья
         const { data: requests, error } = await supabase
             .from('friend_requests')
@@ -582,6 +604,8 @@ app.post('/api/friends/requests/:requestId/accept', authenticateToken, async (re
     const requestId = req.params.requestId;
 
     try {
+        await initializeSupabase(); // Инициализация Supabase перед использованием
+
         // Проверяем, что запрос существует и адресован текущему пользователю
         const { data: request, error } = await supabase
             .from('friend_requests')
@@ -639,6 +663,8 @@ app.post('/api/friends/requests/:requestId/reject', authenticateToken, async (re
     const requestId = req.params.requestId;
 
     try {
+        await initializeSupabase(); // Инициализация Supabase перед использованием
+
         // Проверяем, что запрос существует и адресован текущему пользователю
         const { data: request, error } = await supabase
             .from('friend_requests')
@@ -675,6 +701,8 @@ app.get('/api/friends', authenticateToken, async (req, res) => {
     const userId = req.user.userId;
 
     try {
+        await initializeSupabase(); // Инициализация Supabase перед использованием
+
         // Получаем список друзей с информацией о них
         const { data: friendships, error } = await supabase
             .from('friends')
@@ -745,34 +773,36 @@ app.post('/api/messages/private', authenticateToken, async (req, res) => {
     const senderId = req.user.userId;
     const { receiverTag, message } = req.body;
 
-    // Проверяем формат тега получателя
-    if (!receiverTag || typeof receiverTag !== 'string' || !/^\d{6}$/.test(receiverTag)) {
-        return res.status(400).json({ message: 'Неверный формат тега получателя (ожидается 6-значное число)' });
-    }
-
-    // Проверяем, что сообщение не пустое и является строкой
-    if (!message || typeof message !== 'string' || message.trim().length === 0) {
-        return res.status(400).json({ message: 'Сообщение не может быть пустым' });
-    }
-
-    if (message.trim().length > 1000) {
-        return res.status(400).json({ message: 'Сообщение слишком длинное (максимум 1000 символов)' });
-    }
-
-    // Проверяем лимит на количество сообщений в минуту
-    const now = Date.now();
-    const minuteAgo = now - 60000; // 60 секунд в миллисекундах
-    const userMessageHistory = messageRateLimits[senderId] || [];
-
-    // Удаляем старые записи (старше минуты)
-    const recentMessages = userMessageHistory.filter(timestamp => timestamp > minuteAgo);
-
-    // Ограничиваем количество сообщений в минуту (например, до 10)
-    if (recentMessages.length >= 10) {
-        return res.status(429).json({ message: 'Превышено количество сообщений в минуту' });
-    }
-
     try {
+        await initializeSupabase(); // Инициализация Supabase перед использованием
+
+        // Проверяем формат тега получателя
+        if (!receiverTag || typeof receiverTag !== 'string' || !/^\d{6}$/.test(receiverTag)) {
+            return res.status(400).json({ message: 'Неверный формат тега получателя (ожидается 6-значное число)' });
+        }
+
+        // Проверяем, что сообщение не пустое и является строкой
+        if (!message || typeof message !== 'string' || message.trim().length === 0) {
+            return res.status(400).json({ message: 'Сообщение не может быть пустым' });
+        }
+
+        if (message.trim().length > 1000) {
+            return res.status(400).json({ message: 'Сообщение слишком длинное (максимум 1000 символов)' });
+        }
+
+        // Проверяем лимит на количество сообщений в минуту
+        const now = Date.now();
+        const minuteAgo = now - 60000; // 60 секунд в миллисекундах
+        const userMessageHistory = messageRateLimits[senderId] || [];
+
+        // Удаляем старые записи (старше минуты)
+        const recentMessages = userMessageHistory.filter(timestamp => timestamp > minuteAgo);
+
+        // Ограничиваем количество сообщений в минуту (например, до 10)
+        if (recentMessages.length >= 10) {
+            return res.status(429).json({ message: 'Превышено количество сообщений в минуту' });
+        }
+
         // Находим получателя по тегу
         const { data: receiver, error } = await supabase
             .from('users')
@@ -848,6 +878,8 @@ app.get('/api/messages/private/:userTag', authenticateToken, async (req, res) =>
     const { userTag } = req.params;
 
     try {
+        await initializeSupabase(); // Инициализация Supabase перед использованием
+
         // Находим пользователя по тегу
         const { data: targetUser, error } = await supabase
             .from('users')
@@ -920,6 +952,8 @@ app.get('/api/messages/channel/:channel', authenticateToken, async (req, res) =>
     const { channel } = req.params;
 
     try {
+        await initializeSupabase(); // Инициализация Supabase перед использованием
+
         // Для упрощения, в текущей реализации все сообщения находятся в одном месте
         // В реальном приложении здесь будет логика получения сообщений из конкретного канала
         const { data: messages, error } = await supabase
@@ -962,21 +996,23 @@ app.post('/api/messages/send', authenticateToken, async (req, res) => {
     const userId = req.user.userId;
     const { channel, text } = req.body;
 
-    // Проверяем, что канал и текст являются строками
-    if (typeof channel !== 'string') {
-        return res.status(400).json({ message: 'Неверный формат канала' });
-    }
-
-    // Проверяем, что сообщение не пустое
-    if (!text || typeof text !== 'string' || text.trim().length === 0) {
-        return res.status(400).json({ message: 'Сообщение не может быть пустым' });
-    }
-
-    if (text.trim().length > 1000) {
-        return res.status(400).json({ message: 'Сообщение слишком длинное (максимум 1000 символов)' });
-    }
-
     try {
+        await initializeSupabase(); // Инициализация Supabase перед использованием
+
+        // Проверяем, что канал и текст являются строками
+        if (typeof channel !== 'string') {
+            return res.status(400).json({ message: 'Неверный формат канала' });
+        }
+
+        // Проверяем, что сообщение не пустое
+        if (!text || typeof text !== 'string' || text.trim().length === 0) {
+            return res.status(400).json({ message: 'Сообщение не может быть пустым' });
+        }
+
+        if (text.trim().length > 1000) {
+            return res.status(400).json({ message: 'Сообщение слишком длинное (максимум 1000 символов)' });
+        }
+
         // Получаем информацию о пользователе для сохранения с сообщением
         const { data: user, error: userError } = await supabase
             .from('users')
@@ -1005,18 +1041,6 @@ app.post('/api/messages/send', authenticateToken, async (req, res) => {
             return res.status(500).json({ message: 'Ошибка сервера' });
         }
 
-        // Получаем информацию о пользователе для возврата
-        const { data: user, error: userError } = await supabase
-            .from('users')
-            .select('username, avatar')
-            .eq('id', userId)
-            .single();
-
-        if (userError) {
-            console.error('Ошибка при получении информации о пользователе:', userError);
-            return res.status(500).json({ message: 'Ошибка сервера' });
-        }
-
         res.json({
             message: 'Сообщение успешно отправлено',
             messageId: insertedMessage.id,
@@ -1033,6 +1057,8 @@ app.get('/api/messages/private', authenticateToken, async (req, res) => {
     const userId = req.user.userId;
 
     try {
+        await initializeSupabase(); // Инициализация Supabase перед использованием
+
         // Получаем последние сообщения от/для друзей
         const { data: rawConversations, error } = await supabase
             .from('private_messages')
