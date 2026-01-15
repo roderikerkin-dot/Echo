@@ -690,22 +690,26 @@ app.get('/api/friends', authenticateToken, async (req, res) => {
         }
 
         // Формируем список друзей, независимо от того, кто из пользователей является текущим
-        const friendsList = friendships.map(friendship => {
+        const friendsList = [];
+        for (const friendship of friendships) {
             // Определяем, какой пользователь является "другом" относительно текущего пользователя
-            const friend = friendship.user1_id === userId 
-                ? friendship.users 
-                : {
+            let friend;
+            if (friendship.user1_id === userId) {
+                friend = friendship.users;
+            } else {
+                friend = {
                     id: friendship.user1_id,
-                    ...getFriendInfo(friendship.user1_id, friendship.users)
+                    ...(await getFriendInfo(friendship.user1_id))
                 };
-                
-            return {
+            }
+
+            friendsList.push({
                 id: friend.id,
                 username: friend.username,
                 avatar: friend.avatar || '👤',
                 user_tag: friend.user_tag
-            };
-        }).filter(Boolean); // Убираем undefined значения
+            });
+        }
 
         res.json(friendsList);
     } catch (error) {
@@ -735,11 +739,6 @@ async function getFriendInfo(userId) {
     }
 }
 
-// Объект для отслеживания частоты отправки сообщений (в реальном приложении используйте Redis или базу данных)
-// ВНИМАНИЕ: В текущей реализации данные хранятся в памяти и не персистентны.
-// Это может быть уязвимо к атакам в production-среде.
-const messageRateLimits = {};
-
 // Маршрут для отправки личного сообщения
 app.post('/api/messages/private', authenticateToken, async (req, res) => {
     const senderId = req.user.userId;
@@ -759,16 +758,22 @@ app.post('/api/messages/private', authenticateToken, async (req, res) => {
         return res.status(400).json({ message: 'Сообщение слишком длинное (максимум 1000 символов)' });
     }
 
-    // Проверяем лимит на количество сообщений в минуту
-    const now = Date.now();
-    const minuteAgo = now - 60000; // 60 секунд в миллисекундах
-    const userMessageHistory = messageRateLimits[senderId] || [];
+    // Проверяем лимит на количество сообщений в минуту с помощью Supabase
+    const oneMinuteAgo = new Date(Date.now() - 60000).toISOString();
 
-    // Удаляем старые записи (старше минуты)
-    const recentMessages = userMessageHistory.filter(timestamp => timestamp > minuteAgo);
+    const { count, error: countError } = await supabase
+        .from('private_messages')
+        .select('*', { count: 'exact', head: true })
+        .eq('sender_id', senderId)
+        .gte('timestamp', oneMinuteAgo);
+
+    if (countError) {
+        console.error('Ошибка при проверке лимита сообщений:', countError);
+        return res.status(500).json({ message: 'Ошибка сервера' });
+    }
 
     // Ограничиваем количество сообщений в минуту (например, до 10)
-    if (recentMessages.length >= 10) {
+    if (count >= 10) {
         return res.status(429).json({ message: 'Превышено количество сообщений в минуту' });
     }
 
@@ -901,7 +906,6 @@ app.get('/api/messages/private/:userTag', authenticateToken, async (req, res) =>
         const formattedMessages = messages.map(msg => {
             // Получаем информацию о пользователе напрямую, если соединение не удалось
             const userInfo = msg.users || {};
-            console.log('UserInfo:', userInfo); // Добавляем логирование
             return {
                 ...msg,
                 sender_username: userInfo.username,
@@ -963,8 +967,13 @@ app.post('/api/messages/send', authenticateToken, async (req, res) => {
     const userId = req.user.userId;
     const { channel, text } = req.body;
 
+    // Проверяем, что канал и текст являются строками
+    if (typeof channel !== 'string') {
+        return res.status(400).json({ message: 'Неверный формат канала' });
+    }
+
     // Проверяем, что сообщение не пустое
-    if (!text || text.trim().length === 0) {
+    if (!text || typeof text !== 'string' || text.trim().length === 0) {
         return res.status(400).json({ message: 'Сообщение не может быть пустым' });
     }
 
@@ -993,14 +1002,23 @@ app.post('/api/messages/send', authenticateToken, async (req, res) => {
                 channel: channel,
                 text: text.trim()
             }])
-            .select(`
-                *,
-                users!channel_messages_sender_id_fkey(username, avatar)
-            `)
+            .select()
             .single();
 
         if (insertError) {
             console.error('Ошибка при сохранении сообщения:', insertError);
+            return res.status(500).json({ message: 'Ошибка сервера' });
+        }
+
+        // Получаем информацию о пользователе для возврата
+        const { data: user, error: userError } = await supabase
+            .from('users')
+            .select('username, avatar')
+            .eq('id', userId)
+            .single();
+
+        if (userError) {
+            console.error('Ошибка при получении информации о пользователе:', userError);
             return res.status(500).json({ message: 'Ошибка сервера' });
         }
 
@@ -1042,16 +1060,14 @@ app.get('/api/messages/private', authenticateToken, async (req, res) => {
         rawConversations.forEach(message => {
             // Определяем контактное лицо (не текущего пользователя)
             const contactId = message.sender_id === userId ? message.receiver_id : message.sender_id;
-            
+
             // Если у нас еще нет записи для этого контакта, или текущее сообщение новее
-            if (!conversationsMap.has(contactId) || 
+            if (!conversationsMap.has(contactId) ||
                 new Date(message.timestamp) > new Date(conversationsMap.get(contactId).last_message_time)) {
-                
+
                 const contactUser = message.sender_id === userId
                     ? message.receiver_user
                     : message.sender_user;
-
-                console.log('ContactUser:', contactUser); // Добавляем логирование
 
                 // Проверяем, что все необходимые поля определены
                 if (contactUser && contactUser.username && contactUser.user_tag) {

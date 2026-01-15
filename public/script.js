@@ -6,7 +6,7 @@ const messageInput = document.querySelector('.message-input');
 const messagesContainer = document.querySelector('.messages-container');
 const chatHeader = document.querySelector('.chat-header span');
 const channelElements = document.querySelectorAll('.channel');
-const currentUser = localStorage.getItem('username') || 'CurrentUser'; // Имя текущего пользователя
+const currentUser = safeGetLocalStorage('username') || 'CurrentUser'; // Имя текущего пользователя
 
 // Функция для загрузки сообщений текущего приватного чата
 async function loadPrivateMessages() {
@@ -82,6 +82,19 @@ async function loadPrivateMessages() {
     }
 }
 
+// Функция для безопасного экранирования HTML
+function escapeHtml(unsafe) {
+    if (typeof unsafe !== 'string') {
+        return '';
+    }
+    return unsafe
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
 // Функция для добавления сообщения в DOM
 function addMessageToDOM(message) {
     // Логируем объект сообщения для отладки
@@ -107,7 +120,7 @@ function addMessageToDOM(message) {
                 // Проверяем, является ли дата действительной
                 if (isNaN(date.getTime())) {
                     console.warn('Invalid date:', message.timestamp);
-                    formattedTimestamp = message.timestamp;
+                    formattedTimestamp = escapeHtml(message.timestamp);
                 } else {
                     const day = String(date.getDate()).padStart(2, '0');
                     const month = String(date.getMonth() + 1).padStart(2, '0'); // Месяцы начинаются с 0
@@ -115,25 +128,43 @@ function addMessageToDOM(message) {
                     const hours = String(date.getHours()).padStart(2, '0');
                     const minutes = String(date.getMinutes()).padStart(2, '0');
 
-                    formattedTimestamp = `${day}.${month}.${year}\\${hours}:${minutes}`;
+                    formattedTimestamp = `${escapeHtml(day)}.${escapeHtml(month)}.${escapeHtml(year)}\\${escapeHtml(hours)}:${escapeHtml(minutes)}`;
                 }
             } catch (e) {
                 console.error('Error parsing date:', e);
-                formattedTimestamp = message.timestamp;
+                formattedTimestamp = escapeHtml(message.timestamp);
             }
         }
 
         const messageElement = document.createElement('div');
         messageElement.className = 'message';
 
-        messageElement.innerHTML = `
-            <div class="avatar">${avatar}</div>
-            <div class="message-content">
-                <div class="username">${senderName}</div>
-                <div class="timestamp">${formattedTimestamp}</div>
-                <div class="text">${text}</div>
-            </div>
-        `;
+        // Создаем элементы по отдельности для безопасной вставки
+        const avatarElement = document.createElement('div');
+        avatarElement.className = 'avatar';
+        avatarElement.textContent = escapeHtml(avatar);
+
+        const messageContentElement = document.createElement('div');
+        messageContentElement.className = 'message-content';
+
+        const usernameElement = document.createElement('div');
+        usernameElement.className = 'username';
+        usernameElement.textContent = escapeHtml(senderName);
+
+        const timestampElement = document.createElement('div');
+        timestampElement.className = 'timestamp';
+        timestampElement.textContent = formattedTimestamp;
+
+        const textElement = document.createElement('div');
+        textElement.className = 'text';
+        textElement.textContent = escapeHtml(text);
+
+        messageContentElement.appendChild(usernameElement);
+        messageContentElement.appendChild(timestampElement);
+        messageContentElement.appendChild(textElement);
+
+        messageElement.appendChild(avatarElement);
+        messageElement.appendChild(messageContentElement);
 
         messagesContainer.appendChild(messageElement);
     } catch (error) {
@@ -141,14 +172,33 @@ function addMessageToDOM(message) {
         // Создаем элемент с сообщением об ошибке
         const errorElement = document.createElement('div');
         errorElement.className = 'message';
-        errorElement.innerHTML = `
-            <div class="avatar">⚠️</div>
-            <div class="message-content">
-                <div class="username">System</div>
-                <div class="timestamp">${new Date().toLocaleTimeString()}</div>
-                <div class="text">Ошибка при отображении сообщения</div>
-            </div>
-        `;
+
+        const avatarElement = document.createElement('div');
+        avatarElement.className = 'avatar';
+        avatarElement.textContent = '⚠️';
+
+        const messageContentElement = document.createElement('div');
+        messageContentElement.className = 'message-content';
+
+        const usernameElement = document.createElement('div');
+        usernameElement.className = 'username';
+        usernameElement.textContent = 'System';
+
+        const timestampElement = document.createElement('div');
+        timestampElement.className = 'timestamp';
+        timestampElement.textContent = new Date().toLocaleTimeString();
+
+        const textElement = document.createElement('div');
+        textElement.className = 'text';
+        textElement.textContent = 'Ошибка при отображении сообщения';
+
+        messageContentElement.appendChild(usernameElement);
+        messageContentElement.appendChild(timestampElement);
+        messageContentElement.appendChild(textElement);
+
+        errorElement.appendChild(avatarElement);
+        errorElement.appendChild(messageContentElement);
+
         messagesContainer.appendChild(errorElement);
     }
 }
@@ -223,15 +273,20 @@ async function sendPrivateMessage(text) {
 async function displayPrivateChat() {
     if (!currentPrivateChatUser) {
         // Если пользователь не выбран, показываем пустое сообщение или инструкцию
-        chatHeader.textContent = ' @' + displayName + '#' + currentPrivateChatUser;
+        chatHeader.textContent = 'Direct Messages';
         messageInput.placeholder = 'Выберите друга для отправки сообщения...';
-        messageInput.placeholder = 'Сообщение для @' + (displayName || 'Unknown') + '#' + (currentPrivateChatUser || '000000') + '...';
+        messagesContainer.innerHTML = '<div class="no-conversation-selected">Выберите пользователя для начала чата</div>';
         return;
     }
 
     try {
         // Сначала пытаемся найти имя пользователя в списке друзей
-        const token = localStorage.getItem('token');
+        const token = safeGetLocalStorage('token');
+        if (!token) {
+            console.error('Токен не найден в localStorage');
+            return;
+        }
+
         const friendsResponse = await fetch('/api/friends', {
             method: 'GET',
             headers: {
@@ -399,16 +454,16 @@ async function updateFriendsList() {
     }
 }
 
-// Инициализация при загрузке
-document.addEventListener('DOMContentLoaded', function() {
-    // Обновляем список друзей
-    updateFriendsList();
-});
 
 // Функция для обновления списка друзей в боковой панели
 async function updateFriendsList() {
     try {
-        const token = localStorage.getItem('token');
+        const token = safeGetLocalStorage('token');
+        if (!token) {
+            console.error('Токен не найден в localStorage');
+            return;
+        }
+
         const response = await fetch('/api/friends', {
             method: 'GET',
             headers: {
@@ -471,7 +526,7 @@ async function showFriendRequestsNotification() {
 
     // Загружаем входящие запросы в друзья
     try {
-        const token = localStorage.getItem('token');
+        const token = safeGetLocalStorage('token');
         console.log('Токен:', token);
 
         const response = await fetch('/api/friends/requests/incoming', {
@@ -552,7 +607,11 @@ function closeFriendRequestsNotification() {
 // Функция для принятия запроса в друзья из уведомления
 async function acceptFriendRequestFromNotification(requestId) {
     try {
-        const token = localStorage.getItem('token');
+        const token = safeGetLocalStorage('token');
+        if (!token) {
+            console.error('Токен не найден в localStorage');
+            return;
+        }
 
         const response = await fetch(`/api/friends/requests/${requestId}/accept`, {
             method: 'POST',
@@ -583,7 +642,11 @@ async function acceptFriendRequestFromNotification(requestId) {
 // Функция для отклонения запроса в друзья из уведомления
 async function rejectFriendRequestFromNotification(requestId) {
     try {
-        const token = localStorage.getItem('token');
+        const token = safeGetLocalStorage('token');
+        if (!token) {
+            console.error('Токен не найден в localStorage');
+            return;
+        }
 
         const response = await fetch(`/api/friends/requests/${requestId}/reject`, {
             method: 'POST',

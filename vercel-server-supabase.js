@@ -129,7 +129,8 @@ app.use(cors());
 app.use(bodyParser.json());
 app.use(express.static('public'));
 app.use(passport.initialize());
-app.use(passport.session()); // Для работы с сессиями
+// Убираем passport.session() так как в serverless среде сессии не работают
+// Вместо этого будем использовать JWT токены для аутентификации
 
 // Функция для генерации уникального шестизначного тега пользователя
 function generateUniqueUserTag() {
@@ -353,7 +354,7 @@ app.get('/auth/github',
 
 // Маршрут для обратного вызова после аутентификации через GitHub
 app.get('/auth/github/callback',
-  passport.authenticate('github', { failureRedirect: '/login' }),
+  passport.authenticate('github', { session: false, failureRedirect: '/login' }), // Отключаем сессии
   (req, res) => {
     // Успешная аутентификация, генерируем JWT токен
     const user = req.user;
@@ -675,13 +676,37 @@ app.post('/api/messages/private', authenticateToken, async (req, res) => {
     const senderId = req.user.userId;
     const { receiverTag, message } = req.body;
 
+    // Проверяем формат тега получателя
+    if (!receiverTag || typeof receiverTag !== 'string' || !/^\d{6}$/.test(receiverTag)) {
+        return res.status(400).json({ message: 'Неверный формат тега получателя (ожидается 6-значное число)' });
+    }
+
     // Проверяем, что сообщение не пустое
-    if (!message || message.trim().length === 0) {
+    if (!message || typeof message !== 'string' || message.trim().length === 0) {
         return res.status(400).json({ message: 'Сообщение не может быть пустым' });
     }
 
     if (message.trim().length > 1000) {
         return res.status(400).json({ message: 'Сообщение слишком длинное (максимум 1000 символов)' });
+    }
+
+    // Проверяем лимит на количество сообщений в минуту с помощью Supabase
+    const oneMinuteAgo = new Date(Date.now() - 60000).toISOString();
+
+    const { count, error: countError } = await supabase
+        .from('private_messages')
+        .select('*', { count: 'exact', head: true })
+        .eq('sender_id', senderId)
+        .gte('timestamp', oneMinuteAgo);
+
+    if (countError) {
+        console.error('Ошибка при проверке лимита сообщений:', countError);
+        return res.status(500).json({ message: 'Ошибка сервера' });
+    }
+
+    // Ограничиваем количество сообщений в минуту (например, до 10)
+    if (count >= 10) {
+        return res.status(429).json({ message: 'Превышено количество сообщений в минуту' });
     }
 
     try {

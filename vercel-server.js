@@ -157,17 +157,8 @@ passport.use(new GitHubStrategy({
   }
 ));
 
-// Сериализация пользователя для сессии
-passport.serializeUser(function(user, done) {
-  done(null, user.id);
-});
-
-// Десериализация пользователя из сессии
-passport.deserializeUser(function(id, done) {
-  db.get('SELECT id, email, username, user_tag, about_me, avatar FROM users WHERE id = ?', [id], (err, user) => {
-    done(err, user);
-  });
-});
+// В serverless среде сессии не работают, поэтому не используем serializeUser/deserializeUser
+// или используем JWT токены для аутентификации
 
 // Секретный ключ для JWT
 const JWT_SECRET = 'your-secret-key-change-this-in-production';
@@ -177,7 +168,8 @@ app.use(cors());
 app.use(bodyParser.json());
 app.use(express.static('public')); // Для обслуживания клиентских файлов
 app.use(passport.initialize());
-app.use(passport.session()); // Для работы с сессиями
+// Убираем passport.session() так как в serverless среде сессии не работают
+// Вместо этого будем использовать JWT токены для аутентификации
 
 // Функция для генерации уникального шестизначного тега пользователя
 function generateUniqueUserTag() {
@@ -390,7 +382,7 @@ app.get('/auth/github',
 
 // Маршрут для обратного вызова после аутентификации через GitHub
 app.get('/auth/github/callback',
-  passport.authenticate('github', { failureRedirect: '/login' }),
+  passport.authenticate('github', { session: false, failureRedirect: '/login' }), // Отключаем сессии
   (req, res) => {
     // Успешная аутентификация, генерируем JWT токен
     const user = req.user;
@@ -622,14 +614,23 @@ app.post('/api/messages/private', authenticateToken, (req, res) => {
     const senderId = req.user.userId;
     const { receiverTag, message } = req.body;
 
+    // Проверяем формат тега получателя
+    if (!receiverTag || typeof receiverTag !== 'string' || !/^\d{6}$/.test(receiverTag)) {
+        return res.status(400).json({ message: 'Неверный формат тега получателя (ожидается 6-значное число)' });
+    }
+
     // Проверяем, что сообщение не пустое
-    if (!message || message.trim().length === 0) {
+    if (!message || typeof message !== 'string' || message.trim().length === 0) {
         return res.status(400).json({ message: 'Сообщение не может быть пустым' });
     }
 
     if (message.trim().length > 1000) {
         return res.status(400).json({ message: 'Сообщение слишком длинное (максимум 1000 символов)' });
     }
+
+    // ПРИМЕЧАНИЕ: В реальном приложении в serverless-окружении рекомендуется использовать
+    // внешнее хранилище (например, Redis) или Supabase для эффективного rate limiting
+    // из-за отсутствия персистентности состояния между вызовами в serverless среде
 
     // Находим получателя по тегу
     db.get('SELECT id FROM users WHERE user_tag = ?', [receiverTag], (err, receiver) => {

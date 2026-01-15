@@ -8,25 +8,45 @@ const bodyParser = require('body-parser');
 const path = require('path');
 const passport = require('passport');
 const GitHubStrategy = require('passport-github2').Strategy;
+const { createClient } = require('@supabase/supabase-js');
 
 const app = express();
+
+// Инициализация Supabase
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_KEY;
+
+if (!supabaseUrl || !supabaseKey) {
+  console.error('Ошибка: Не заданы переменные окружения SUPABASE_URL или SUPABASE_KEY');
+  throw new Error('Не заданы переменные окружения SUPABASE_URL или SUPABASE_KEY');
+}
+
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 // Middleware
 app.use(cors());
 app.use(bodyParser.json());
 app.use(express.static('public'));
 
-// In-memory "база данных" для тестирования на Vercel
-let users = [];
-let friendRequests = [];
-let friends = [];
-let privateMessages = [];
-
-// Генерация ID
-let nextId = 1;
-function generateId() {
-  return nextId++;
+// Проверка подключения к Supabase
+async function testSupabaseConnection() {
+  try {
+    const { data, error } = await supabase.from('users').select('id').limit(1);
+    if (error) {
+      console.error('Ошибка подключения к Supabase:', error);
+      throw new Error(`Ошибка подключения к Supabase: ${error.message}`);
+    }
+    console.log('Подключение к Supabase успешно');
+  } catch (err) {
+    console.error('Ошибка при проверке подключения к Supabase:', err);
+    throw err;
+  }
 }
+
+// Выполняем проверку подключения при инициализации
+testSupabaseConnection().catch(err => {
+  console.error('Ошибка при инициализации подключения к Supabase:', err);
+});
 
 // Настройка Passport для аутентификации через GitHub (заглушка)
 passport.use(new GitHubStrategy({
@@ -84,7 +104,8 @@ app.use(cors());
 app.use(bodyParser.json());
 app.use(express.static('public'));
 app.use(passport.initialize());
-app.use(passport.session());
+// Убираем passport.session() так как в serverless среде сессии не работают
+// Вместо этого будем использовать JWT токены для аутентификации
 
 // Функция для генерации уникального шестизначного тега пользователя
 function generateUniqueUserTag() {
@@ -92,18 +113,26 @@ function generateUniqueUserTag() {
 }
 
 // Функция для проверки уникальности тега пользователя
-function checkUserTagUniqueness(tag) {
-    return !users.some(user => user.user_tag === tag);
+async function checkUserTagUniqueness(tag) {
+    const { data, error } = await supabase
+        .from('users')
+        .select('id')
+        .eq('user_tag', tag)
+        .single();
+
+    return !data; // true если тег уникален
 }
 
 // Функция для генерации уникального тега (с проверкой на уникальность)
-function generateUniqueTagWithRetry(attempts = 0) {
+async function generateUniqueTagWithRetry(attempts = 0) {
     if (attempts > 10) { // Ограничение числа попыток
         throw new Error('Не удалось сгенерировать уникальный тег после нескольких попыток');
     }
 
     const tag = generateUniqueUserTag();
-    if (checkUserTagUniqueness(tag)) {
+    const isUnique = await checkUserTagUniqueness(tag);
+
+    if (isUnique) {
         return tag;
     } else {
         // Рекурсивный вызов для генерации нового тега
@@ -148,24 +177,36 @@ app.post('/api/register', async (req, res) => {
         // Генерация уникального тега пользователя
         const userTag = generateUniqueTagWithRetry();
 
-        // Создание нового пользователя
-        const newUser = {
-            id: generateId(),
-            email,
-            password: hashedPassword,
-            username: randomUsername,
-            user_tag: userTag,
-            about_me: '',
-            avatar: '👤',
-            registration_date: new Date().toISOString()
-        };
+        // Вставка пользователя в базу данных Supabase
+        const { data: insertedUser, error: insertError } = await supabase
+            .from('users')
+            .insert([{
+                email,
+                password: hashedPassword,
+                username: randomUsername,
+                user_tag: userTag,
+                about_me: '',
+                avatar: '👤',
+                registration_date: new Date().toISOString()
+            }])
+            .select()
+            .single();
 
-        users.push(newUser);
+        if (insertError) {
+            if (insertError.code === '23505') { // Код ошибки уникальности в PostgreSQL
+                if (insertError.message.includes('email')) {
+                    return res.status(400).json({ message: 'Пользователь с таким email уже зарегистрирован' });
+                } else if (insertError.message.includes('user_tag')) {
+                    return res.status(500).json({ message: 'Ошибка при генерации уникального тега' });
+                }
+            }
+            return res.status(500).json({ message: 'Ошибка сервера при регистрации' });
+        }
 
         // Успешная регистрация
         res.status(201).json({
             message: 'Регистрация успешна!',
-            userId: newUser.id,
+            userId: insertedUser.id,
             username: randomUsername,
             userTag: userTag
         });
@@ -179,14 +220,18 @@ app.post('/api/register', async (req, res) => {
 app.post('/api/login', async (req, res) => {
     const { email, password } = req.body;
 
-    // Поиск пользователя в "базе данных"
-    const user = users.find(u => u.email === email);
-
-    if (!user) {
-        return res.status(401).json({ message: 'Неверный email или пароль' });
-    }
-
     try {
+        // Поиск пользователя в базе данных
+        const { data: user, error } = await supabase
+            .from('users')
+            .select('*')
+            .eq('email', email)
+            .single();
+
+        if (error || !user) {
+            return res.status(401).json({ message: 'Неверный email или пароль' });
+        }
+
         // Проверка пароля
         const isPasswordValid = await bcrypt.compare(password, user.password);
         if (!isPasswordValid) {
@@ -211,7 +256,7 @@ app.post('/api/login', async (req, res) => {
             }
         });
     } catch (error) {
-        console.error('Ошибка при проверке пароля:', error);
+        console.error('Ошибка при входе:', error);
         res.status(500).json({ message: 'Ошибка сервера' });
     }
 });
@@ -235,38 +280,55 @@ const authenticateToken = (req, res, next) => {
 };
 
 // Маршрут для получения информации о пользователе
-app.get('/api/profile', authenticateToken, (req, res) => {
-    const user = users.find(u => u.id === req.user.userId);
+app.get('/api/profile', authenticateToken, async (req, res) => {
+    try {
+        const { data: user, error } = await supabase
+            .from('users')
+            .select('id, email, username, user_tag, about_me, avatar, registration_date')
+            .eq('id', req.user.userId)
+            .single();
 
-    if (!user) {
-        return res.status(404).json({ message: 'Пользователь не найден' });
+        if (error || !user) {
+            return res.status(404).json({ message: 'Пользователь не найден' });
+        }
+
+        res.json(user);
+    } catch (error) {
+        console.error('Ошибка при получении профиля:', error);
+        res.status(500).json({ message: 'Ошибка сервера' });
     }
-
-    res.json({
-        id: user.id,
-        email: user.email,
-        username: user.username,
-        user_tag: user.user_tag,
-        about_me: user.about_me || '',
-        avatar: user.avatar || '👤',
-        registration_date: user.registration_date
-    });
 });
 
 // Маршрут для обновления профиля
-app.put('/api/profile', authenticateToken, (req, res) => {
+app.put('/api/profile', authenticateToken, async (req, res) => {
     const { username, about, avatar } = req.body;
-    const userIndex = users.findIndex(u => u.id === req.user.userId);
 
-    if (userIndex === -1) {
-        return res.status(404).json({ message: 'Пользователь не найден' });
+    try {
+        const { data, error } = await supabase
+            .from('users')
+            .update({
+                username: username || undefined,
+                about_me: about || undefined,
+                avatar: avatar || undefined
+            })
+            .eq('id', req.user.userId)
+            .select()
+            .single();
+
+        if (error) {
+            console.error('Ошибка при обновлении профиля:', error);
+            return res.status(500).json({ message: 'Ошибка сервера' });
+        }
+
+        if (!data) {
+            return res.status(404).json({ message: 'Пользователь не найден' });
+        }
+
+        res.json({ message: 'Профиль успешно обновлен' });
+    } catch (error) {
+        console.error('Ошибка при обновлении профиля:', error);
+        res.status(500).json({ message: 'Ошибка сервера' });
     }
-
-    users[userIndex].username = username || users[userIndex].username;
-    users[userIndex].about_me = about || users[userIndex].about_me;
-    users[userIndex].avatar = avatar || users[userIndex].avatar;
-
-    res.json({ message: 'Профиль успешно обновлен' });
 });
 
 // Маршрут для аутентификации через GitHub (заглушка)
@@ -275,7 +337,7 @@ app.get('/auth/github',
 
 // Маршрут для обратного вызова после аутентификации через GitHub (заглушка)
 app.get('/auth/github/callback',
-  passport.authenticate('github', { failureRedirect: '/login' }),
+  passport.authenticate('github', { session: false, failureRedirect: '/login' }), // Отключаем сессии
   (req, res) => {
     // Успешная аутентификация, генерируем JWT токен
     const user = req.user;
@@ -297,60 +359,72 @@ app.get('/', (req, res) => {
 });
 
 // Маршрут для отправки запроса в друзья
-app.post('/api/friends/request', authenticateToken, (req, res) => {
+app.post('/api/friends/request', authenticateToken, async (req, res) => {
     const senderId = req.user.userId;
     const { userTag } = req.body; // получаем тег пользователя, которому отправляем запрос
 
-    // Находим получателя запроса по тегу
-    const receiver = users.find(u => u.user_tag === userTag);
+    try {
+        // Находим получателя запроса по тегу
+        const { data: receiver, error } = await supabase
+            .from('users')
+            .select('id')
+            .eq('user_tag', userTag)
+            .single();
 
-    if (!receiver) {
-        return res.status(404).json({ message: 'Пользователь с таким тегом не найден' });
-    }
-
-    const receiverId = receiver.id;
-
-    // Проверяем, не является ли пользователь сам собой
-    if (senderId === receiverId) {
-        return res.status(400).json({ message: 'Нельзя отправить запрос в друзья себе' });
-    }
-
-    // Проверяем, нет ли уже запроса или уже являются друзьями
-    const existingRequest = friendRequests.find(
-      req => (req.sender_id === senderId && req.receiver_id === receiverId) || 
-             (req.sender_id === receiverId && req.receiver_id === senderId)
-    );
-
-    if (existingRequest) {
-        if (existingRequest.status === 'accepted') {
-            return res.status(400).json({ message: 'Вы уже являетесь друзьями' });
-        } else {
-            return res.status(400).json({ message: 'Запрос в друзья уже отправлен' });
+        if (error || !receiver) {
+            return res.status(404).json({ message: 'Пользователь с таким тегом не найден' });
         }
+
+        const receiverId = receiver.id;
+
+        // Проверяем, не является ли пользователь сам собой
+        if (senderId === receiverId) {
+            return res.status(400).json({ message: 'Нельзя отправить запрос в друзья себе' });
+        }
+
+        // Проверяем, нет ли уже запроса или уже являются друзьями
+        const { data: existingRequest, error: requestError } = await supabase
+            .from('friend_requests')
+            .select('*')
+            .or(`and(sender_id.eq.${senderId},receiver_id.eq.${receiverId}),and(sender_id.eq.${receiverId},receiver_id.eq.${senderId})`)
+            .single();
+
+        if (existingRequest) {
+            if (existingRequest.status === 'accepted') {
+                return res.status(400).json({ message: 'Вы уже являетесь друзьями' });
+            } else {
+                return res.status(400).json({ message: 'Запрос в друзья уже отправлен' });
+            }
+        }
+
+        // Проверяем, нет ли уже дружбы между пользователями
+        const { data: friendship, error: friendshipError } = await supabase
+            .from('friends')
+            .select('*')
+            .or(`and(user1_id.eq.${senderId},user2_id.eq.${receiverId}),and(user1_id.eq.${receiverId},user2_id.eq.${senderId})`)
+            .single();
+
+        if (friendship) {
+            return res.status(400).json({ message: 'Вы уже являетесь друзьями' });
+        }
+
+        // Создаем запрос в друзья
+        const { data: newRequest, error: insertError } = await supabase
+            .from('friend_requests')
+            .insert([{ sender_id: senderId, receiver_id: receiverId }])
+            .select()
+            .single();
+
+        if (insertError) {
+            console.error('Ошибка при создании запроса в друзья:', insertError);
+            return res.status(500).json({ message: 'Ошибка сервера' });
+        }
+
+        res.json({ message: 'Запрос в друзья успешно отправлен', requestId: newRequest.id });
+    } catch (error) {
+        console.error('Ошибка при отправке запроса в друзья:', error);
+        res.status(500).json({ message: 'Ошибка сервера' });
     }
-
-    // Проверяем, нет ли уже дружбы между пользователями
-    const friendship = friends.find(
-      f => (f.user1_id === senderId && f.user2_id === receiverId) || 
-           (f.user1_id === receiverId && f.user2_id === senderId)
-    );
-
-    if (friendship) {
-        return res.status(400).json({ message: 'Вы уже являетесь друзьями' });
-    }
-
-    // Создаем запрос в друзья
-    const newRequest = {
-        id: generateId(),
-        sender_id: senderId,
-        receiver_id: receiverId,
-        status: 'pending',
-        created_at: new Date().toISOString()
-    };
-
-    friendRequests.push(newRequest);
-
-    res.json({ message: 'Запрос в друзья успешно отправлен', requestId: newRequest.id });
 });
 
 // Маршрут для получения входящих запросов в друзья
@@ -472,14 +546,23 @@ app.post('/api/messages/private', authenticateToken, (req, res) => {
     const senderId = req.user.userId;
     const { receiverTag, message } = req.body;
 
+    // Проверяем формат тега получателя
+    if (!receiverTag || typeof receiverTag !== 'string' || !/^\d{6}$/.test(receiverTag)) {
+        return res.status(400).json({ message: 'Неверный формат тега получателя (ожидается 6-значное число)' });
+    }
+
     // Проверяем, что сообщение не пустое
-    if (!message || message.trim().length === 0) {
+    if (!message || typeof message !== 'string' || message.trim().length === 0) {
         return res.status(400).json({ message: 'Сообщение не может быть пустым' });
     }
 
     if (message.trim().length > 1000) {
         return res.status(400).json({ message: 'Сообщение слишком длинное (максимум 1000 символов)' });
     }
+
+    // ПРИМЕЧАНИЕ: В реальном приложении в serverless-окружении рекомендуется использовать
+    // внешнее хранилище (например, Redis) или Supabase для эффективного rate limiting
+    // из-за отсутствия персистентности состояния между вызовами в serverless среде
 
     // Находим получателя по тегу
     const receiver = users.find(u => u.user_tag === receiverTag);
