@@ -447,17 +447,6 @@ app.post('/api/friends/request', authenticateToken, async (req, res) => {
         return res.status(429).json({ message: 'Превышено количество запросов в друзья за сегодня' });
     }
 
-    try {
-        // Находим получателя запроса по тегу
-        const { data: receiver, error } = await supabase
-            .from('users')
-            .select('id')
-            .eq('user_tag', userTag)
-            .single();
-
-        if (error || !receiver) {
-            return res.status(404).json({ message: 'Пользователь с таким тегом не найден' });
-        }
 
         const receiverId = receiver.id;
 
