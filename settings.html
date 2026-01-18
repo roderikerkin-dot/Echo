@@ -256,10 +256,39 @@
 
     <script>
         // Загружаем имя пользователя
-        document.addEventListener('DOMContentLoaded', function() {
-            const username = localStorage.getItem('username');
-            if (username) {
-                document.getElementById('currentUsername').textContent = username;
+        document.addEventListener('DOMContentLoaded', async function() {
+            const token = localStorage.getItem('token');
+
+            if (!token) {
+                alert('Требуется аутентификация');
+                window.location.href = 'login.html';
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/profile', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': 'Bearer ' + token
+                    }
+                });
+
+                if (response.ok) {
+                    const userData = await response.json();
+                    document.getElementById('currentUsername').textContent = userData.username || '';
+
+                    // Сохраняем CSRF-токен
+                    if (userData.csrfToken) {
+                        localStorage.setItem('csrfToken', userData.csrfToken);
+                    }
+                } else {
+                    const errorData = await response.json();
+                    alert(errorData.message || 'Ошибка при загрузке профиля');
+                    window.location.href = 'login.html';
+                }
+            } catch (error) {
+                console.error('Ошибка при загрузке профиля:', error);
+                alert('Ошибка соединения с сервером');
             }
         });
 
@@ -274,8 +303,23 @@
         function logout() {
             const confirmed = confirm('Вы уверены что хотите выйти из профиля?');
             if (confirmed) {
+                // Отзываем токен на сервере
+                const token = localStorage.getItem('token');
+                if (token) {
+                    fetch('/api/logout', {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': 'Bearer ' + token
+                        }
+                    })
+                    .catch(error => console.error('Ошибка при выходе:', error)); // Игнорируем ошибки при выходе
+                }
+
+                // Удаляем данные аутентификации
                 localStorage.removeItem('isLoggedIn');
                 localStorage.removeItem('username');
+                localStorage.removeItem('token');
+
                 window.location.href = 'login.html';
             }
         }

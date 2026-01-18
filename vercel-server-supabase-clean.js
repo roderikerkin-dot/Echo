@@ -323,7 +323,18 @@ app.get('/api/profile', authenticateToken, async (req, res) => {
             return res.status(404).json({ message: 'Пользователь не найден' });
         }
 
-        res.json(user);
+        // Генерируем CSRF-токен
+        const csrfToken = jwt.sign(
+            { userId: user.id, timestamp: Date.now() },
+            JWT_SECRET,
+            { expiresIn: '1h' }
+        );
+
+        // Возвращаем пользователя вместе с CSRF-токеном
+        res.json({
+            ...user,
+            csrfToken
+        });
     } catch (error) {
         console.error('Ошибка при получении профиля:', error);
         res.status(500).json({ message: 'Ошибка сервера' });
@@ -332,7 +343,19 @@ app.get('/api/profile', authenticateToken, async (req, res) => {
 
 // Маршрут для обновления профиля
 app.put('/api/profile', authenticateToken, async (req, res) => {
-    const { username, about, avatar } = req.body;
+    const { username, about, avatar, csrfToken } = req.body;
+
+    // Проверяем CSRF-токен
+    if (!csrfToken) {
+        return res.status(403).json({ message: 'CSRF-токен отсутствует' });
+    }
+
+    try {
+        // Проверяем CSRF-токен
+        jwt.verify(csrfToken, JWT_SECRET);
+    } catch (err) {
+        return res.status(403).json({ message: 'Недействительный CSRF-токен' });
+    }
 
     try {
         const { data, error } = await supabase
@@ -401,10 +424,8 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// Объект для отслеживания количества запросов в друзья (в реальном приложении используйте Redis или базу данных)
-// ВНИМАНИЕ: В текущей реализации данные хранятся в памяти и не персистентны.
-// Это может быть уязвимо к атакам в production-среде.
-const friendRequestLimits = {};
+// Вместо хранения лимитов в памяти, будем использовать Supabase для хранения ограничений частоты
+// Это обеспечивает персистентность данных в serverless среде
 
 // Маршрут для отправки запроса в друзья
 app.post('/api/friends/request', authenticateToken, async (req, res) => {
@@ -416,16 +437,24 @@ app.post('/api/friends/request', authenticateToken, async (req, res) => {
         return res.status(400).json({ message: 'Неверный формат тега пользователя (ожидается 6-значное число)' });
     }
 
-    // Проверяем лимит на количество запросов в день
-    const today = new Date().toDateString();
-    const userKey = `${senderId}_${today}`;
+    // Проверяем лимит на количество запросов в день с помощью Supabase
+    const today = new Date().toISOString().split('T')[0]; // Получаем сегодняшнюю дату в формате YYYY-MM-DD
 
-    if (!friendRequestLimits[userKey]) {
-        friendRequestLimits[userKey] = 0;
+    // Считаем количество запросов, сделанных сегодня
+    const { data: dailyRequests, error: countError } = await supabase
+        .from('friend_requests')
+        .select('*', { count: 'exact' })
+        .eq('sender_id', senderId)
+        .gte('created_at', `${today}T00:00:00`)
+        .lte('created_at', `${today}T23:59:59`);
+
+    if (countError) {
+        console.error('Ошибка при подсчете запросов в друзья за сегодня:', countError);
+        return res.status(500).json({ message: 'Ошибка сервера' });
     }
 
     // Ограничиваем количество запросов в день (например, до 20)
-    if (friendRequestLimits[userKey] >= 20) {
+    if (dailyRequests.count >= 20) {
         return res.status(429).json({ message: 'Превышено количество запросов в друзья за сегодня' });
     }
 
@@ -759,16 +788,23 @@ app.post('/api/messages/private', authenticateToken, async (req, res) => {
         return res.status(400).json({ message: 'Сообщение слишком длинное (максимум 1000 символов)' });
     }
 
-    // Проверяем лимит на количество сообщений в минуту
-    const now = Date.now();
-    const minuteAgo = now - 60000; // 60 секунд в миллисекундах
-    const userMessageHistory = messageRateLimits[senderId] || [];
+    // Проверяем лимит на количество сообщений в минуту с помощью Supabase
+    const oneMinuteAgo = new Date(Date.now() - 60000).toISOString(); // 60 секунд назад
 
-    // Удаляем старые записи (старше минуты)
-    const recentMessages = userMessageHistory.filter(timestamp => timestamp > minuteAgo);
+    // Считаем количество сообщений, отправленных за последнюю минуту
+    const { data: recentMessages, error: countError } = await supabase
+        .from('private_messages')
+        .select('*', { count: 'exact' })
+        .eq('sender_id', senderId)
+        .gte('timestamp', oneMinuteAgo);
+
+    if (countError) {
+        console.error('Ошибка при подсчете сообщений за последнюю минуту:', countError);
+        return res.status(500).json({ message: 'Ошибка сервера' });
+    }
 
     // Ограничиваем количество сообщений в минуту (например, до 10)
-    if (recentMessages.length >= 10) {
+    if (recentMessages.count >= 10) {
         return res.status(429).json({ message: 'Превышено количество сообщений в минуту' });
     }
 
@@ -826,10 +862,6 @@ app.post('/api/messages/private', authenticateToken, async (req, res) => {
             console.error('Ошибка при сохранении сообщения:', insertError);
             return res.status(500).json({ message: 'Ошибка сервера' });
         }
-
-        // Добавляем время отправки сообщения в историю
-        recentMessages.push(now);
-        messageRateLimits[senderId] = recentMessages;
 
         res.json({
             message: 'Сообщение успешно отправлено',

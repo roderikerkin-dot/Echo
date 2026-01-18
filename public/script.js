@@ -6,7 +6,8 @@ const messageInput = document.querySelector('.message-input');
 const messagesContainer = document.querySelector('.messages-container');
 const chatHeader = document.querySelector('.chat-header span');
 const channelElements = document.querySelectorAll('.channel');
-const currentUser = localStorage.getItem('username') || 'CurrentUser'; // Имя текущего пользователя
+// Имя текущего пользователя будет получаться с сервера при загрузке
+let currentUser = 'CurrentUser';
 
 // Функция для загрузки сообщений текущего приватного чата
 async function loadPrivateMessages() {
@@ -91,13 +92,13 @@ function addMessageToDOM(message) {
     try {
         // Определяем имя отправителя
         // В зависимости от структуры данных, имя может быть в разных полях
-        const senderName = message.sender_username || message.username || message.users?.username || 'Unknown';
+        const senderName = escapeHtml(message.sender_username || message.username || message.users?.username || 'Unknown');
 
         // Определяем аватар
-        const avatar = message.sender_avatar || message.avatar || message.users?.avatar || '👤';
+        const avatar = escapeHtml(message.sender_avatar || message.avatar || message.users?.avatar || '👤');
 
         // Определяем текст сообщения
-        const text = message.text || message.message || '';
+        const text = escapeHtml(message.text || message.message || '');
 
         // Форматируем дату и время в формат дд.мм.гг\чч:мм
         let formattedTimestamp = 'Just now'; // Значение по умолчанию
@@ -107,7 +108,7 @@ function addMessageToDOM(message) {
                 // Проверяем, является ли дата действительной
                 if (isNaN(date.getTime())) {
                     console.warn('Invalid date:', message.timestamp);
-                    formattedTimestamp = message.timestamp;
+                    formattedTimestamp = escapeHtml(message.timestamp);
                 } else {
                     const day = String(date.getDate()).padStart(2, '0');
                     const month = String(date.getMonth() + 1).padStart(2, '0'); // Месяцы начинаются с 0
@@ -115,11 +116,11 @@ function addMessageToDOM(message) {
                     const hours = String(date.getHours()).padStart(2, '0');
                     const minutes = String(date.getMinutes()).padStart(2, '0');
 
-                    formattedTimestamp = `${day}.${month}.${year}\\${hours}:${minutes}`;
+                    formattedTimestamp = `${escapeHtml(day)}.${escapeHtml(month)}.${escapeHtml(year)} ${escapeHtml(hours)}:${escapeHtml(minutes)}`;
                 }
             } catch (e) {
                 console.error('Error parsing date:', e);
-                formattedTimestamp = message.timestamp;
+                formattedTimestamp = escapeHtml(message.timestamp);
             }
         }
 
@@ -145,7 +146,7 @@ function addMessageToDOM(message) {
             <div class="avatar">⚠️</div>
             <div class="message-content">
                 <div class="username">System</div>
-                <div class="timestamp">${new Date().toLocaleTimeString()}</div>
+                <div class="timestamp">${escapeHtml(new Date().toLocaleTimeString())}</div>
                 <div class="text">Ошибка при отображении сообщения</div>
             </div>
         `;
@@ -223,9 +224,9 @@ async function sendPrivateMessage(text) {
 async function displayPrivateChat() {
     if (!currentPrivateChatUser) {
         // Если пользователь не выбран, показываем пустое сообщение или инструкцию
-        chatHeader.textContent = ' @' + displayName + '#' + currentPrivateChatUser;
+        chatHeader.textContent = ' @' + escapeHtml(displayName) + '#' + escapeHtml(currentPrivateChatUser);
         messageInput.placeholder = 'Выберите друга для отправки сообщения...';
-        messageInput.placeholder = 'Сообщение для @' + (displayName || 'Unknown') + '#' + (currentPrivateChatUser || '000000') + '...';
+        messageInput.placeholder = 'Сообщение для @' + escapeHtml(displayName || 'Unknown') + '#' + escapeHtml(currentPrivateChatUser || '000000') + '...';
         return;
     }
 
@@ -250,15 +251,15 @@ async function displayPrivateChat() {
         }
 
         // Обновляем заголовок чата
-        chatHeader.textContent = `@${displayName}#${currentPrivateChatUser}`;
+        chatHeader.textContent = `@${escapeHtml(displayName)}#${escapeHtml(currentPrivateChatUser)}`;
 
         // Обновляем подпись в поле ввода
-        messageInput.placeholder = `Сообщение для @${displayName}#${currentPrivateChatUser}...`;
+        messageInput.placeholder = `Сообщение для @${escapeHtml(displayName)}#${escapeHtml(currentPrivateChatUser)}...`;
     } catch (error) {
         console.error('Ошибка при получении информации о пользователе:', error);
         // В случае ошибки используем тег
-        chatHeader.textContent = `@${currentPrivateChatUser}`;
-        messageInput.placeholder = `Сообщение для @${currentPrivateChatUser}...`;
+        chatHeader.textContent = `@${escapeHtml(currentPrivateChatUser)}`;
+        messageInput.placeholder = `Сообщение для @${escapeHtml(currentPrivateChatUser)}...`;
     }
 
     // Загружаем сообщения с сервера
@@ -275,7 +276,7 @@ messageInput.addEventListener('keypress', function(e) {
 // Обработка клика по друзьям для начала приватного чата
 // Мы добавим обработчики динамически, когда будем получать список друзей
 
-// Функция для безопасного получения элемента из localStorage
+// Функция для безопасного получения элемента из localStorage с проверкой типа
 function safeGetLocalStorage(key) {
     try {
         // Проверяем, доступен ли localStorage
@@ -283,11 +284,67 @@ function safeGetLocalStorage(key) {
             console.error('localStorage не поддерживается');
             return null;
         }
-        return localStorage.getItem(key);
+
+        // Для токена проверим его валидность дополнительно
+        if (key === 'token') {
+            const token = localStorage.getItem(key);
+            if (!token) {
+                return null;
+            }
+
+            // Проверим, не истек ли срок действия токена
+            try {
+                const payload = JSON.parse(atob(token.split('.')[1]));
+                const currentTime = Math.floor(Date.now() / 1000);
+
+                if (payload.exp < currentTime) {
+                    console.warn('Токен истек');
+                    localStorage.removeItem('token');
+                    localStorage.removeItem('isLoggedIn');
+                    localStorage.removeItem('username');
+                    window.location.href = 'login.html';
+                    return null;
+                }
+            } catch (e) {
+                console.error('Ошибка при проверке токена:', e);
+                return null;
+            }
+        }
+
+        const value = localStorage.getItem(key);
+
+        // Проверяем тип возвращаемого значения
+        if (value === null || value === undefined) {
+            return null;
+        }
+
+        // Возвращаем значение в зависимости от ожидаемого типа
+        switch(key) {
+            case 'isLoggedIn':
+                return value === 'true'; // Возвращаем boolean
+            case 'token':
+            case 'username':
+                return typeof value === 'string' ? value : null; // Возвращаем строку
+            default:
+                return value;
+        }
     } catch (error) {
         console.error('Ошибка при доступе к localStorage:', error);
         return null;
     }
+}
+
+// Функция для экранирования HTML-символов для предотвращения XSS-атак
+function escapeHtml(unsafe) {
+    if (typeof unsafe !== 'string') {
+        return '';
+    }
+    return unsafe
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
 }
 
 // Функция для обновления списка друзей и добавления обработчиков
@@ -366,8 +423,8 @@ async function updateFriendsList() {
             const contactElement = document.createElement('div');
             contactElement.className = 'friend-item channel';
             contactElement.innerHTML = `
-                <div class="avatar">${contact.avatar || '👤'}</div>
-                <span class="friend-username">${contact.username || 'Unknown'}<span class="user-tag">#${contact.user_tag || '000000'}</span></span>
+                <div class="avatar">${escapeHtml(contact.avatar || '👤')}</div>
+                <span class="friend-username">${escapeHtml(contact.username || 'Unknown')}<span class="user-tag">#${escapeHtml(contact.user_tag || '000000')}</span></span>
             `;
 
             // Добавляем обработчик клика для начала приватного чата
@@ -405,57 +462,6 @@ document.addEventListener('DOMContentLoaded', function() {
     updateFriendsList();
 });
 
-// Функция для обновления списка друзей в боковой панели
-async function updateFriendsList() {
-    try {
-        const token = localStorage.getItem('token');
-        const response = await fetch('/api/friends', {
-            method: 'GET',
-            headers: {
-                'Authorization': 'Bearer ' + token
-            }
-        });
-
-        if (response.ok) {
-            const friends = await response.json();
-            const friendsList = document.getElementById('friends-list');
-
-            // Очищаем текущий список друзей
-            friendsList.innerHTML = '';
-
-            // Добавляем друзей в список
-            friends.forEach(friend => {
-                const friendElement = document.createElement('div');
-                friendElement.className = 'friend-item channel';
-                friendElement.innerHTML = `
-                    <div class="avatar">${friend.avatar || '👤'}</div>
-                    <span class="friend-username">${friend.username}<span class="user-tag">#${friend.user_tag}</span></span>
-                `;
-
-                // Добавляем обработчик клика для начала приватного чата
-                friendElement.addEventListener('click', function() {
-                    // Удаляем класс активного канала
-                    document.querySelectorAll('.channel').forEach(ch => {
-                        ch.classList.remove('active-channel');
-                    });
-
-                    // Добавляем класс активного канала к выбранному
-                    this.classList.add('active-channel');
-
-                    // Устанавливаем текущего пользователя для приватного чата
-                    currentPrivateChatUser = friend.user_tag;
-
-                    // Обновляем отображение чата
-                    displayPrivateChat();
-                });
-
-                friendsList.appendChild(friendElement);
-            });
-        }
-    } catch (error) {
-        console.error('Ошибка при загрузке друзей:', error);
-    }
-}
 
 // Функция для обновления списка друзей при добавлении нового друга
 function addFriendToList(friend) {

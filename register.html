@@ -242,51 +242,40 @@
                 return;
             }
             
-            // Проверяем, не зарегистрирован ли уже пользователь с таким email
-            let users = {};
+            // Отправляем запрос на сервер для регистрации
             try {
-                const storedUsers = localStorage.getItem('users');
-                if (storedUsers) {
-                    users = JSON.parse(storedUsers);
+                const response = await fetch('/api/register', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        email: email,
+                        password: password
+                    })
+                });
+
+                if (response.ok) {
+                    // Показываем сообщение об успехе
+                    successMessage.style.display = 'block';
+
+                    // Через 3 секунды перенаправляем на страницу входа
+                    setTimeout(function() {
+                        window.location.href = 'login.html';
+                    }, 3000);
+                } else {
+                    const errorData = await response.json();
+                    errorMessage.textContent = errorData.message;
+                    errorMessage.style.display = 'block';
+                    document.getElementById('email').classList.add('error');
+                    return;
                 }
             } catch (error) {
-                errorMessage.textContent = 'Ошибка при чтении данных: ' + error.message;
+                console.error('Ошибка при регистрации:', error);
+                errorMessage.textContent = 'Ошибка соединения с сервером';
                 errorMessage.style.display = 'block';
                 return;
             }
-            
-            if (users[email]) {
-                errorMessage.textContent = 'Пользователь с таким email уже зарегистрирован';
-                errorMessage.style.display = 'block';
-                document.getElementById('email').classList.add('error');
-                return;
-            }
-            
-            // Генерируем случайное имя пользователя
-            const randomUsername = generateRandomUsername();
-            
-            // Подготовка и сохранение данных пользователя
-            users[email] = {
-                password: password,
-                username: randomUsername,
-                registrationDate: new Date().toISOString()
-            };
-            
-            try {
-                localStorage.setItem('users', JSON.stringify(users));
-            } catch (error) {
-                errorMessage.textContent = 'Ошибка при сохранении данных: ' + error.message;
-                errorMessage.style.display = 'block';
-                return;
-            }
-            
-            // Показываем сообщение об успехе
-            successMessage.style.display = 'block';
-            
-            // Через 3 секунды перенаправляем на страницу входа
-            setTimeout(function() {
-                window.location.href = 'login.html';
-            }, 3000);
         });
         
         function togglePasswordVisibility(passwordFieldId, toggleButtonId) {

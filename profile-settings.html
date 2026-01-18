@@ -275,27 +275,47 @@
 
     <script>
         // Загружаем данные профиля
-        document.addEventListener('DOMContentLoaded', function() {
-            const email = localStorage.getItem('username'); // email хранится в 'username'
-            const users = JSON.parse(localStorage.getItem('users')) || {};
-            const user = users[email];
-            const displayName = user ? user.username : email; // Используем случайное имя пользователя, если оно есть
+        document.addEventListener('DOMContentLoaded', async function() {
+            const token = localStorage.getItem('token');
 
-            if (displayName) {
-                document.getElementById('username').value = displayName;
-                document.getElementById('currentUsername').textContent = displayName;
+            if (!token) {
+                alert('Требуется аутентификация');
+                window.location.href = 'login.html';
+                return;
             }
 
-            // Загружаем аватар из localStorage, если он есть
-            const avatar = localStorage.getItem('userAvatar');
-            if (avatar) {
-                document.getElementById('avatarPreview').textContent = avatar;
-            }
+            try {
+                const response = await fetch('/api/profile', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': 'Bearer ' + token
+                    }
+                });
 
-            // Загружаем информацию "О себе" из localStorage, если она есть
-            const aboutMe = localStorage.getItem('aboutMe');
-            if (aboutMe) {
-                document.getElementById('aboutMe').value = aboutMe;
+                if (response.ok) {
+                    const userData = await response.json();
+
+                    document.getElementById('username').value = userData.username || '';
+                    document.getElementById('currentUsername').textContent = userData.username || '';
+
+                    // Устанавливаем аватар из данных профиля или используем значение по умолчанию
+                    document.getElementById('avatarPreview').textContent = userData.avatar || '👤';
+
+                    // Устанавливаем информацию "О себе" из данных профиля
+                    document.getElementById('aboutMe').value = userData.about_me || '';
+
+                    // Сохраняем CSRF-токен
+                    if (userData.csrfToken) {
+                        localStorage.setItem('csrfToken', userData.csrfToken);
+                    }
+                } else {
+                    const errorData = await response.json();
+                    alert(errorData.message || 'Ошибка при загрузке профиля');
+                    window.location.href = 'login.html';
+                }
+            } catch (error) {
+                console.error('Ошибка при загрузке профиля:', error);
+                alert('Ошибка соединения с сервером');
             }
         });
 
@@ -310,9 +330,24 @@
         function logout() {
             const confirmed = confirm('Вы уверены что хотите выйти из профиля?');
             if (confirmed) {
+                // Отзываем токен на сервере
+                const token = localStorage.getItem('token');
+                if (token) {
+                    fetch('/api/logout', {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': 'Bearer ' + token
+                        }
+                    })
+                    .catch(error => console.error('Ошибка при выходе:', error)); // Игнорируем ошибки при выходе
+                }
+
+                // Удаляем данные аутентификации
                 localStorage.removeItem('isLoggedIn');
                 localStorage.removeItem('username');
+                localStorage.removeItem('token');
                 localStorage.removeItem('userAvatar');
+
                 window.location.href = 'login.html';
             }
         }
@@ -332,26 +367,45 @@
             const newUsername = document.getElementById('username').value.trim();
             const newAboutMe = document.getElementById('aboutMe').value.trim();
             const avatar = document.getElementById('avatarPreview').textContent;
+            const token = localStorage.getItem('token');
+            const csrfToken = localStorage.getItem('csrfToken'); // Получаем CSRF-токен
+
+            if (!token) {
+                alert('Требуется аутентификация');
+                window.location.href = 'login.html';
+                return;
+            }
 
             if (newUsername) {
-                // Обновляем имя пользователя в профиле пользователя
-                const email = localStorage.getItem('username'); // email хранится в 'username'
-                const users = JSON.parse(localStorage.getItem('users')) || {};
-                if (users[email]) {
-                    users[email].username = newUsername; // Обновляем только имя пользователя, не email
-                    localStorage.setItem('users', JSON.stringify(users));
-                }
+                // Отправляем обновленные данные на сервер
+                fetch('/api/profile', {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + token
+                    },
+                    body: JSON.stringify({
+                        username: newUsername,
+                        about: newAboutMe,
+                        avatar: avatar,
+                        csrfToken: csrfToken // Добавляем CSRF-токен в запрос
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.message) {
+                        alert(data.message);
 
-                // Обновляем имя пользователя на странице
-                document.getElementById('currentUsername').textContent = newUsername;
-
-                // Сохраняем аватар в localStorage
-                localStorage.setItem('userAvatar', avatar);
-
-                // Сохраняем информацию "О со" в localStorage
-                localStorage.setItem('aboutMe', newAboutMe);
-
-                alert('Изменения профиля успешно сохранены!');
+                        // Обновляем имя пользователя на странице
+                        document.getElementById('currentUsername').textContent = newUsername;
+                    } else {
+                        alert('Ошибка при сохранении профиля');
+                    }
+                })
+                .catch(error => {
+                    console.error('Ошибка при сохранении профиля:', error);
+                    alert('Ошибка соединения с сервером');
+                });
             } else {
                 alert('Пожалуйста, введите имя пользователя');
             }
