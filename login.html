@@ -185,26 +185,76 @@
     </div>
 
     <script>
-        document.getElementById('loginForm').addEventListener('submit', function(e) {
+        // Переменные для отслеживания попыток входа
+        let loginAttempts = 0;
+        let lockoutTime = 0; // Время блокировки в миллисекундах
+
+        document.getElementById('loginForm').addEventListener('submit', async function(e) {
             e.preventDefault();
+
+            // Проверяем, не заблокирован ли пользователь
+            if (lockoutTime > Date.now()) {
+                const remainingTime = Math.ceil((lockoutTime - Date.now()) / 1000);
+                errorMessage.textContent = `Слишком много неудачных попыток. Повторите через ${remainingTime} сек.`;
+                errorMessage.style.display = 'block';
+                setTimeout(function() {
+                    errorMessage.style.display = 'none';
+                }, 3000);
+                return;
+            }
 
             const username = document.getElementById('username').value;
             const password = document.getElementById('password').value;
             const errorMessage = document.getElementById('errorMessage');
 
-            // Проверяем логин и пароль из localStorage
-            const users = JSON.parse(localStorage.getItem('users')) || {};
+            try {
+                // Отправляем запрос на сервер для аутентификации
+                const response = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        email: username,
+                        password: password
+                    })
+                });
 
-            // Проверяем, есть ли пользователь с таким email и правильный ли пароль
-            if (users[username] && users[username].password === password) {
-                // Сохраняем информацию о пользователе в localStorage
-                localStorage.setItem('isLoggedIn', 'true');
-                localStorage.setItem('username', username);
+                if (response.ok) {
+                    const data = await response.json();
 
-                // Переходим на основной сайт
-                window.location.href = 'index.html';
-            } else {
-                // Показываем сообщение об ошибке
+                    // Сбросить счетчик попыток при успешном входе
+                    loginAttempts = 0;
+
+                    // Сохраняем токен аутентификации в localStorage
+                    localStorage.setItem('token', data.token);
+                    localStorage.setItem('isLoggedIn', 'true');
+                    localStorage.setItem('username', data.user.email); // Сохраняем email для отображения
+
+                    // Переходим на основной сайт
+                    window.location.href = 'index.html';
+                } else {
+                    // Увеличиваем счетчик неудачных попыток
+                    loginAttempts++;
+
+                    // Блокировка после 5 неудачных попыток на 1 минуту
+                    if (loginAttempts >= 5) {
+                        lockoutTime = Date.now() + 60000; // Блокировка на 1 минуту
+                    }
+
+                    // Показываем сообщение об ошибке
+                    const errorData = await response.json();
+                    errorMessage.textContent = errorData.message || 'Неверный логин или пароль';
+                    errorMessage.style.display = 'block';
+
+                    // Скрываем сообщение об ошибке через 3 секунды
+                    setTimeout(function() {
+                        errorMessage.style.display = 'none';
+                    }, 3000);
+                }
+            } catch (error) {
+                console.error('Ошибка при входе:', error);
+                errorMessage.textContent = 'Ошибка соединения с сервером';
                 errorMessage.style.display = 'block';
 
                 // Скрываем сообщение об ошибке через 3 секунды

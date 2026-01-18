@@ -6,7 +6,8 @@ const messageInput = document.querySelector('.message-input');
 const messagesContainer = document.querySelector('.messages-container');
 const chatHeader = document.querySelector('.chat-header span');
 const channelElements = document.querySelectorAll('.channel');
-const currentUser = safeGetLocalStorage('username') || 'CurrentUser'; // Имя текущего пользователя
+// Имя текущего пользователя будет получаться с сервера при загрузке
+let currentUser = 'CurrentUser';
 
 // Функция для загрузки сообщений текущего приватного чата
 async function loadPrivateMessages() {
@@ -82,19 +83,6 @@ async function loadPrivateMessages() {
     }
 }
 
-// Функция для безопасного экранирования HTML
-function escapeHtml(unsafe) {
-    if (typeof unsafe !== 'string') {
-        return '';
-    }
-    return unsafe
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;");
-}
-
 // Функция для добавления сообщения в DOM
 function addMessageToDOM(message) {
     // Логируем объект сообщения для отладки
@@ -104,13 +92,13 @@ function addMessageToDOM(message) {
     try {
         // Определяем имя отправителя
         // В зависимости от структуры данных, имя может быть в разных полях
-        const senderName = message.sender_username || message.username || message.users?.username || 'Unknown';
+        const senderName = escapeHtml(message.sender_username || message.username || message.users?.username || 'Unknown');
 
         // Определяем аватар
-        const avatar = message.sender_avatar || message.avatar || message.users?.avatar || '👤';
+        const avatar = escapeHtml(message.sender_avatar || message.avatar || message.users?.avatar || '👤');
 
         // Определяем текст сообщения
-        const text = message.text || message.message || '';
+        const text = escapeHtml(message.text || message.message || '');
 
         // Форматируем дату и время в формат дд.мм.гг\чч:мм
         let formattedTimestamp = 'Just now'; // Значение по умолчанию
@@ -128,7 +116,7 @@ function addMessageToDOM(message) {
                     const hours = String(date.getHours()).padStart(2, '0');
                     const minutes = String(date.getMinutes()).padStart(2, '0');
 
-                    formattedTimestamp = `${escapeHtml(day)}.${escapeHtml(month)}.${escapeHtml(year)}\\${escapeHtml(hours)}:${escapeHtml(minutes)}`;
+                    formattedTimestamp = `${escapeHtml(day)}.${escapeHtml(month)}.${escapeHtml(year)} ${escapeHtml(hours)}:${escapeHtml(minutes)}`;
                 }
             } catch (e) {
                 console.error('Error parsing date:', e);
@@ -139,32 +127,14 @@ function addMessageToDOM(message) {
         const messageElement = document.createElement('div');
         messageElement.className = 'message';
 
-        // Создаем элементы по отдельности для безопасной вставки
-        const avatarElement = document.createElement('div');
-        avatarElement.className = 'avatar';
-        avatarElement.textContent = escapeHtml(avatar);
-
-        const messageContentElement = document.createElement('div');
-        messageContentElement.className = 'message-content';
-
-        const usernameElement = document.createElement('div');
-        usernameElement.className = 'username';
-        usernameElement.textContent = escapeHtml(senderName);
-
-        const timestampElement = document.createElement('div');
-        timestampElement.className = 'timestamp';
-        timestampElement.textContent = formattedTimestamp;
-
-        const textElement = document.createElement('div');
-        textElement.className = 'text';
-        textElement.textContent = escapeHtml(text);
-
-        messageContentElement.appendChild(usernameElement);
-        messageContentElement.appendChild(timestampElement);
-        messageContentElement.appendChild(textElement);
-
-        messageElement.appendChild(avatarElement);
-        messageElement.appendChild(messageContentElement);
+        messageElement.innerHTML = `
+            <div class="avatar">${avatar}</div>
+            <div class="message-content">
+                <div class="username">${senderName}</div>
+                <div class="timestamp">${formattedTimestamp}</div>
+                <div class="text">${text}</div>
+            </div>
+        `;
 
         messagesContainer.appendChild(messageElement);
     } catch (error) {
@@ -172,33 +142,14 @@ function addMessageToDOM(message) {
         // Создаем элемент с сообщением об ошибке
         const errorElement = document.createElement('div');
         errorElement.className = 'message';
-
-        const avatarElement = document.createElement('div');
-        avatarElement.className = 'avatar';
-        avatarElement.textContent = '⚠️';
-
-        const messageContentElement = document.createElement('div');
-        messageContentElement.className = 'message-content';
-
-        const usernameElement = document.createElement('div');
-        usernameElement.className = 'username';
-        usernameElement.textContent = 'System';
-
-        const timestampElement = document.createElement('div');
-        timestampElement.className = 'timestamp';
-        timestampElement.textContent = new Date().toLocaleTimeString();
-
-        const textElement = document.createElement('div');
-        textElement.className = 'text';
-        textElement.textContent = 'Ошибка при отображении сообщения';
-
-        messageContentElement.appendChild(usernameElement);
-        messageContentElement.appendChild(timestampElement);
-        messageContentElement.appendChild(textElement);
-
-        errorElement.appendChild(avatarElement);
-        errorElement.appendChild(messageContentElement);
-
+        errorElement.innerHTML = `
+            <div class="avatar">⚠️</div>
+            <div class="message-content">
+                <div class="username">System</div>
+                <div class="timestamp">${escapeHtml(new Date().toLocaleTimeString())}</div>
+                <div class="text">Ошибка при отображении сообщения</div>
+            </div>
+        `;
         messagesContainer.appendChild(errorElement);
     }
 }
@@ -273,20 +224,15 @@ async function sendPrivateMessage(text) {
 async function displayPrivateChat() {
     if (!currentPrivateChatUser) {
         // Если пользователь не выбран, показываем пустое сообщение или инструкцию
-        chatHeader.textContent = 'Direct Messages';
+        chatHeader.textContent = ' @' + escapeHtml(displayName) + '#' + escapeHtml(currentPrivateChatUser);
         messageInput.placeholder = 'Выберите друга для отправки сообщения...';
-        messagesContainer.innerHTML = '<div class="no-conversation-selected">Выберите пользователя для начала чата</div>';
+        messageInput.placeholder = 'Сообщение для @' + escapeHtml(displayName || 'Unknown') + '#' + escapeHtml(currentPrivateChatUser || '000000') + '...';
         return;
     }
 
     try {
         // Сначала пытаемся найти имя пользователя в списке друзей
-        const token = safeGetLocalStorage('token');
-        if (!token) {
-            console.error('Токен не найден в localStorage');
-            return;
-        }
-
+        const token = localStorage.getItem('token');
         const friendsResponse = await fetch('/api/friends', {
             method: 'GET',
             headers: {
@@ -305,15 +251,15 @@ async function displayPrivateChat() {
         }
 
         // Обновляем заголовок чата
-        chatHeader.textContent = `@${displayName}#${currentPrivateChatUser}`;
+        chatHeader.textContent = `@${escapeHtml(displayName)}#${escapeHtml(currentPrivateChatUser)}`;
 
         // Обновляем подпись в поле ввода
-        messageInput.placeholder = `Сообщение для @${displayName}#${currentPrivateChatUser}...`;
+        messageInput.placeholder = `Сообщение для @${escapeHtml(displayName)}#${escapeHtml(currentPrivateChatUser)}...`;
     } catch (error) {
         console.error('Ошибка при получении информации о пользователе:', error);
         // В случае ошибки используем тег
-        chatHeader.textContent = `@${currentPrivateChatUser}`;
-        messageInput.placeholder = `Сообщение для @${currentPrivateChatUser}...`;
+        chatHeader.textContent = `@${escapeHtml(currentPrivateChatUser)}`;
+        messageInput.placeholder = `Сообщение для @${escapeHtml(currentPrivateChatUser)}...`;
     }
 
     // Загружаем сообщения с сервера
@@ -330,7 +276,7 @@ messageInput.addEventListener('keypress', function(e) {
 // Обработка клика по друзьям для начала приватного чата
 // Мы добавим обработчики динамически, когда будем получать список друзей
 
-// Функция для безопасного получения элемента из localStorage
+// Функция для безопасного получения элемента из localStorage с проверкой типа
 function safeGetLocalStorage(key) {
     try {
         // Проверяем, доступен ли localStorage
@@ -338,11 +284,67 @@ function safeGetLocalStorage(key) {
             console.error('localStorage не поддерживается');
             return null;
         }
-        return localStorage.getItem(key);
+
+        // Для токена проверим его валидность дополнительно
+        if (key === 'token') {
+            const token = localStorage.getItem(key);
+            if (!token) {
+                return null;
+            }
+
+            // Проверим, не истек ли срок действия токена
+            try {
+                const payload = JSON.parse(atob(token.split('.')[1]));
+                const currentTime = Math.floor(Date.now() / 1000);
+
+                if (payload.exp < currentTime) {
+                    console.warn('Токен истек');
+                    localStorage.removeItem('token');
+                    localStorage.removeItem('isLoggedIn');
+                    localStorage.removeItem('username');
+                    window.location.href = 'login.html';
+                    return null;
+                }
+            } catch (e) {
+                console.error('Ошибка при проверке токена:', e);
+                return null;
+            }
+        }
+
+        const value = localStorage.getItem(key);
+
+        // Проверяем тип возвращаемого значения
+        if (value === null || value === undefined) {
+            return null;
+        }
+
+        // Возвращаем значение в зависимости от ожидаемого типа
+        switch(key) {
+            case 'isLoggedIn':
+                return value === 'true'; // Возвращаем boolean
+            case 'token':
+            case 'username':
+                return typeof value === 'string' ? value : null; // Возвращаем строку
+            default:
+                return value;
+        }
     } catch (error) {
         console.error('Ошибка при доступе к localStorage:', error);
         return null;
     }
+}
+
+// Функция для экранирования HTML-символов для предотвращения XSS-атак
+function escapeHtml(unsafe) {
+    if (typeof unsafe !== 'string') {
+        return '';
+    }
+    return unsafe
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
 }
 
 // Функция для обновления списка друзей и добавления обработчиков
@@ -421,8 +423,8 @@ async function updateFriendsList() {
             const contactElement = document.createElement('div');
             contactElement.className = 'friend-item channel';
             contactElement.innerHTML = `
-                <div class="avatar">${contact.avatar || '👤'}</div>
-                <span class="friend-username">${contact.username || 'Unknown'}<span class="user-tag">#${contact.user_tag || '000000'}</span></span>
+                <div class="avatar">${escapeHtml(contact.avatar || '👤')}</div>
+                <span class="friend-username">${escapeHtml(contact.username || 'Unknown')}<span class="user-tag">#${escapeHtml(contact.user_tag || '000000')}</span></span>
             `;
 
             // Добавляем обработчик клика для начала приватного чата
@@ -431,6 +433,42 @@ async function updateFriendsList() {
                 document.querySelectorAll('.channel').forEach(ch => {
                     ch.classList.remove('active-channel');
                 });
+
+                // Добавляем класс активного канала к выбранному
+                this.classList.add('active-channel');
+
+                // Устанавливаем текущего пользователя для приватного чата
+                currentPrivateChatUser = contact.user_tag;
+
+                // Обновляем отображение чата
+                displayPrivateChat();
+            });
+
+            friendsList.appendChild(contactElement);
+        });
+    } catch (error) {
+        console.error('Ошибка при загрузке контактов:', error);
+        // Показываем пользователю сообщение об ошибке
+        const friendsList = document.getElementById('friends-list');
+        if (friendsList) {
+            friendsList.innerHTML = '<div class="error-loading">Ошибка загрузки списка контактов</div>';
+        }
+    }
+}
+
+// Инициализация при загрузке
+document.addEventListener('DOMContentLoaded', function() {
+    // Обновляем список друзей
+    updateFriendsList();
+});
+
+
+// Функция для обновления списка друзей при добавлении нового друга
+function addFriendToList(friend) {
+    // Обновляем весь список контактов, чтобы добавить нового друга
+    updateFriendsList();
+}
+
 // Функция для отображения панели уведомлений о заявках в друзья
 async function showFriendRequestsNotification() {
     console.log('showFriendRequestsNotification вызвана');
@@ -439,7 +477,7 @@ async function showFriendRequestsNotification() {
 
     // Загружаем входящие запросы в друзья
     try {
-        const token = safeGetLocalStorage('token');
+        const token = localStorage.getItem('token');
         console.log('Токен:', token);
 
         const response = await fetch('/api/friends/requests/incoming', {
@@ -520,11 +558,7 @@ function closeFriendRequestsNotification() {
 // Функция для принятия запроса в друзья из уведомления
 async function acceptFriendRequestFromNotification(requestId) {
     try {
-        const token = safeGetLocalStorage('token');
-        if (!token) {
-            console.error('Токен не найден в localStorage');
-            return;
-        }
+        const token = localStorage.getItem('token');
 
         const response = await fetch(`/api/friends/requests/${requestId}/accept`, {
             method: 'POST',
@@ -555,11 +589,7 @@ async function acceptFriendRequestFromNotification(requestId) {
 // Функция для отклонения запроса в друзья из уведомления
 async function rejectFriendRequestFromNotification(requestId) {
     try {
-        const token = safeGetLocalStorage('token');
-        if (!token) {
-            console.error('Токен не найден в localStorage');
-            return;
-        }
+        const token = localStorage.getItem('token');
 
         const response = await fetch(`/api/friends/requests/${requestId}/reject`, {
             method: 'POST',

@@ -111,23 +111,50 @@
 
     <script>
         // Проверяем авторизацию при загрузке страницы
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', async function() {
+            const token = localStorage.getItem('token');
             const isLoggedIn = localStorage.getItem('isLoggedIn');
             const authCheckDiv = document.getElementById('authCheck');
             const appDiv = document.querySelector('.app');
 
-            if (isLoggedIn === 'true') {
-                // Пользователь авторизован, показываем приложение
-                authCheckDiv.style.display = 'none';
-                appDiv.style.display = 'flex';
+            if (isLoggedIn === 'true' && token) {
+                // Проверяем валидность токена, запросив данные профиля
+                try {
+                    const response = await fetch('/api/profile', {
+                        method: 'GET',
+                        headers: {
+                            'Authorization': 'Bearer ' + token
+                        }
+                    });
 
-                // Обновляем имя пользователя
-                const email = localStorage.getItem('username'); // email хранится в 'username'
-                const users = JSON.parse(localStorage.getItem('users')) || {};
-                const user = users[email];
-                const displayName = user ? user.username : email; // Используем случайное имя пользователя, если оно есть
+                    if (response.ok) {
+                        // Пользователь авторизован, показываем приложение
+                        authCheckDiv.style.display = 'none';
+                        appDiv.style.display = 'flex';
 
-                document.getElementById('currentUsername').textContent = displayName;
+                        // Обновляем имя пользователя
+                        const userData = await response.json();
+                        document.getElementById('currentUsername').textContent = userData.username;
+
+                        // Сохраняем CSRF-токен
+                        if (userData.csrfToken) {
+                            localStorage.setItem('csrfToken', userData.csrfToken);
+                        }
+                    } else {
+                        // Токен недействителен, перенаправляем на страницу входа
+                        localStorage.removeItem('isLoggedIn');
+                        localStorage.removeItem('username');
+                        localStorage.removeItem('token');
+                        window.location.href = 'login.html';
+                    }
+                } catch (error) {
+                    console.error('Ошибка при проверке токена:', error);
+                    // В случае ошибки перенаправляем на страницу входа
+                    localStorage.removeItem('isLoggedIn');
+                    localStorage.removeItem('username');
+                    localStorage.removeItem('token');
+                    window.location.href = 'login.html';
+                }
             } else {
                 // Пользователь не авторизован, перенаправляем на страницу входа
                 window.location.href = 'login.html';
@@ -138,8 +165,23 @@
         function logout() {
             const confirmed = confirm('Вы уверены что хотите выйти из профиля?');
             if (confirmed) {
+                // Отзываем токен на сервере
+                const token = localStorage.getItem('token');
+                if (token) {
+                    fetch('/api/logout', {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': 'Bearer ' + token
+                        }
+                    })
+                    .catch(error => console.error('Ошибка при выходе:', error)); // Игнорируем ошибки при выходе
+                }
+
+                // Удаляем данные аутентификации
                 localStorage.removeItem('isLoggedIn');
                 localStorage.removeItem('username');
+                localStorage.removeItem('token');
+
                 window.location.href = 'login.html';
             }
         }
